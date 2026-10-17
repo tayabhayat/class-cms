@@ -20,6 +20,9 @@
             View My Attendance
         </a>
         {% elif request.user.role == "admin" %}
+        <a href="{% url 'view_attendance' course.id %}" class="btn btn-primary">
+            View Attendance
+        </a>
         <a href="{% url 'edit_course' course.id %}" class="btn btn-secondary">
             Edit Course
         </a>
@@ -75,6 +78,9 @@
         </a>
         <a href="{% url 'poll_list' %}?course={{ course.id }}" class="btn btn-secondary">
             View Polls
+        </a>
+        <a href="{% url 'view_attendance' course.id %}" class="btn btn-secondary">
+            View Attendance Register
         </a>
         <a href="{% url 'mark_attendance' course.id %}" class="btn btn-secondary">
             Mark Manual Attendance

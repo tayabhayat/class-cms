@@ -3,6 +3,7 @@ from .views import (
     dashboard,
     course_detail,
     mark_attendance,
+    view_course_attendance,
     import_attendance,
     import_enrollments,
     my_attendance,
@@ -51,6 +52,11 @@ urlpatterns = [
         "courses/<int:course_id>/attendance/",
         mark_attendance,
         name="mark_attendance",
+    ),
+    path(
+        "courses/<int:course_id>/attendance/view/",
+        view_course_attendance,
+        name="view_attendance",
     ),
     path(
         "attendance/import/",

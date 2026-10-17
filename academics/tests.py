@@ -1971,4 +1971,176 @@ class SecurityAndHardeningTests(TestCase):
         self.assertFalse(PollVote.objects.filter(poll=poll1).exists())
 
 
+class AdminCourseAttendanceViewerTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="cr.admin@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.ADMIN,
+            first_name="Hassan",
+            last_name="Raza",
+        )
+        self.student1 = User.objects.create_user(
+            email="ayesha.saleem@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A001",
+            first_name="Ayesha",
+            last_name="Saleem",
+            must_change_password=False,
+        )
+        self.student2 = User.objects.create_user(
+            email="bilal.tariq@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A002",
+            first_name="Bilal",
+            last_name="Tariq",
+            must_change_password=False,
+        )
+        self.student3_no_records = User.objects.create_user(
+            email="usman.ali@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A003",
+            first_name="Usman",
+            last_name="Ali",
+            must_change_password=False,
+        )
+        self.course = Course.objects.create(
+            code="CS-301",
+            name="Data Structures & Algorithms",
+            semester="Semester 5",
+            is_active=True,
+        )
+        # Enroll all 3 students
+        Enrollment.objects.create(student=self.student1, course=self.course)
+        Enrollment.objects.create(student=self.student2, course=self.course)
+        Enrollment.objects.create(student=self.student3_no_records, course=self.course)
 
+        self.view_url = reverse("view_attendance", kwargs={"course_id": self.course.id})
+
+    def test_anonymous_user_redirected_to_login(self):
+        res = self.client.get(self.view_url)
+        self.assertEqual(res.status_code, 302)
+        self.assertIn("/login", res.url)
+
+    def test_student_cannot_access_full_register(self):
+        self.client.force_login(self.student1)
+        res = self.client.get(self.view_url)
+        # Should be redirected away by user_passes_test(is_admin)
+        self.assertEqual(res.status_code, 302)
+        self.assertIn("/login", res.url)
+
+    def test_admin_can_view_course_register(self):
+        s1 = AttendanceSession.objects.create(
+            course=self.course, date=date(2026, 10, 1), created_by=self.admin
+        )
+        s2 = AttendanceSession.objects.create(
+            course=self.course, date=date(2026, 10, 8), created_by=self.admin
+        )
+        Attendance.objects.create(session=s1, student=self.student1, status="present")
+        Attendance.objects.create(session=s2, student=self.student1, status="absent")
+
+        self.client.force_login(self.admin)
+        res = self.client.get(self.view_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, "academics/course_attendance.html")
+        self.assertContains(res, "CS-301")
+        self.assertContains(res, "Data Structures &amp; Algorithms")
+        self.assertContains(res, "BITF24A001")
+        self.assertContains(res, "Ayesha Saleem")
+        self.assertContains(res, "01 Oct")
+        self.assertContains(res, "08 Oct")
+
+    def test_enrolled_student_with_no_attendance_records_appears(self):
+        s1 = AttendanceSession.objects.create(
+            course=self.course, date=date(2026, 10, 1), created_by=self.admin
+        )
+        Attendance.objects.create(session=s1, student=self.student1, status="present")
+
+        self.client.force_login(self.admin)
+        res = self.client.get(self.view_url)
+        self.assertEqual(res.status_code, 200)
+
+        student_rows = res.context["student_rows"]
+        student_ids_in_context = [r["student"].id for r in student_rows]
+        self.assertIn(self.student3_no_records.id, student_ids_in_context)
+
+        row3 = next(r for r in student_rows if r["student"].id == self.student3_no_records.id)
+        self.assertEqual(row3["student_id"], "BITF24A003")
+        self.assertEqual(row3["name"], "Usman Ali")
+        self.assertEqual(row3["present_count"], 0)
+        self.assertEqual(row3["absent_count"], 0)
+        self.assertEqual(row3["recorded_count"], 0)
+        self.assertFalse(row3["has_records"])
+        self.assertEqual(row3["percentage"], 0.0)
+
+        self.assertContains(res, "No Records")
+        self.assertContains(res, "BITF24A003")
+
+    def test_present_absent_totals_and_percentages_correct(self):
+        d1, d2, d3, d4 = date(2026, 10, 1), date(2026, 10, 8), date(2026, 10, 15), date(2026, 10, 22)
+        s1 = AttendanceSession.objects.create(course=self.course, date=d1, created_by=self.admin)
+        s2 = AttendanceSession.objects.create(course=self.course, date=d2, created_by=self.admin)
+        s3 = AttendanceSession.objects.create(course=self.course, date=d3, created_by=self.admin)
+        s4 = AttendanceSession.objects.create(course=self.course, date=d4, created_by=self.admin)
+
+        # Student 1: 3 Present, 1 Absent => 3/4 = 75.0%
+        Attendance.objects.create(session=s1, student=self.student1, status="present")
+        Attendance.objects.create(session=s2, student=self.student1, status="present")
+        Attendance.objects.create(session=s3, student=self.student1, status="present")
+        Attendance.objects.create(session=s4, student=self.student1, status="absent")
+
+        # Student 2: 1 Present, 2 Absent, 1 unrecorded => 1/4 = 25.0%
+        Attendance.objects.create(session=s1, student=self.student2, status="present")
+        Attendance.objects.create(session=s2, student=self.student2, status="absent")
+        Attendance.objects.create(session=s3, student=self.student2, status="absent")
+
+        self.client.force_login(self.admin)
+        res = self.client.get(self.view_url)
+        self.assertEqual(res.status_code, 200)
+
+        student_rows = res.context["student_rows"]
+        row1 = next(r for r in student_rows if r["student"].id == self.student1.id)
+        self.assertEqual(row1["present_count"], 3)
+        self.assertEqual(row1["absent_count"], 1)
+        self.assertEqual(row1["recorded_count"], 4)
+        self.assertEqual(row1["percentage"], 75.0)
+
+        row2 = next(r for r in student_rows if r["student"].id == self.student2.id)
+        self.assertEqual(row2["present_count"], 1)
+        self.assertEqual(row2["absent_count"], 2)
+        self.assertEqual(row2["recorded_count"], 3)
+        self.assertEqual(row2["percentage"], 25.0)
+
+        # Class average: (3 + 1) / (4 sessions * 3 students) = 4 / 12 = 33.3%
+        self.assertEqual(res.context["class_average_percentage"], 33.3)
+
+    def test_empty_course_and_course_without_sessions_render_without_errors(self):
+        # Case 1: Course has enrolled students but zero sessions
+        self.client.force_login(self.admin)
+        res_no_sessions = self.client.get(self.view_url)
+        self.assertEqual(res_no_sessions.status_code, 200)
+        self.assertEqual(res_no_sessions.context["total_sessions"], 0)
+        self.assertEqual(res_no_sessions.context["class_average_percentage"], 0.0)
+        self.assertContains(res_no_sessions, "No attendance sessions have been held yet for this course.")
+        self.assertContains(res_no_sessions, "BITF24A001")
+
+        # Case 2: Completely empty course (0 students, 0 sessions)
+        empty_course = Course.objects.create(
+            code="EMPTY-101", name="Empty Course", semester="Semester 1"
+        )
+        empty_url = reverse("view_attendance", kwargs={"course_id": empty_course.id})
+        res_empty = self.client.get(empty_url)
+        self.assertEqual(res_empty.status_code, 200)
+        self.assertEqual(res_empty.context["total_students"], 0)
+        self.assertEqual(res_empty.context["total_sessions"], 0)
+        self.assertEqual(res_empty.context["class_average_percentage"], 0.0)
+        self.assertContains(res_empty, "No students are enrolled in this course.")
+
+    def test_course_detail_links_to_view_attendance_for_admin(self):
+        self.client.force_login(self.admin)
+        res = self.client.get(reverse("course_detail", kwargs={"course_id": self.course.id}))
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, self.view_url)

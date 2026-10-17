@@ -242,6 +242,112 @@ def mark_attendance(request, course_id):
             "session_date": session_date,
         },
     )
+
+
+@login_required
+@user_passes_test(is_admin)
+def view_course_attendance(request, course_id):
+    """
+    Renders the full course attendance register for Admin/CR users.
+    Displays all enrolled students (including those without attendance records),
+    session-by-session status, and student-level totals and percentages.
+    """
+    course = get_object_or_404(Course, id=course_id)
+
+    # 1. Fetch all enrolled students with user details in a single query
+    enrollments = (
+        Enrollment.objects.filter(course=course)
+        .select_related("student")
+        .order_by("student__student_id", "student__first_name", "student__email")
+    )
+
+    # 2. Fetch all attendance sessions for this course in chronological order
+    sessions = list(AttendanceSession.objects.filter(course=course).order_by("date", "id"))
+
+    # 3. Fetch all attendance records for these sessions in one query
+    records = Attendance.objects.filter(session__in=sessions).values(
+        "session_id", "student_id", "status"
+    )
+
+    # Fast in-memory lookup map: (session_id, student_id) -> status
+    attendance_map = {
+        (r["session_id"], r["student_id"]): r["status"]
+        for r in records
+    }
+
+    total_sessions_count = len(sessions)
+    student_rows = []
+    total_class_present = 0
+    total_class_recorded = 0
+
+    for enrollment in enrollments:
+        student = enrollment.student
+        student_sessions = []
+        present_count = 0
+        absent_count = 0
+        leave_count = 0
+        recorded_count = 0
+
+        for session in sessions:
+            status = attendance_map.get((session.id, student.id))
+            if status == Attendance.Status.PRESENT:
+                present_count += 1
+                recorded_count += 1
+            elif status == Attendance.Status.ABSENT:
+                absent_count += 1
+                recorded_count += 1
+            elif status == Attendance.Status.LEAVE:
+                leave_count += 1
+                recorded_count += 1
+
+            student_sessions.append({
+                "session": session,
+                "status": status,
+            })
+
+        total_class_present += present_count
+        total_class_recorded += recorded_count
+
+        if total_sessions_count > 0:
+            percentage = round((present_count / total_sessions_count) * 100, 1)
+        else:
+            percentage = 0.0
+
+        student_rows.append({
+            "student": student,
+            "student_id": student.student_id or "—",
+            "name": student.get_full_name() or student.email,
+            "email": student.email,
+            "sessions": student_sessions,
+            "present_count": present_count,
+            "absent_count": absent_count,
+            "leave_count": leave_count,
+            "recorded_count": recorded_count,
+            "has_records": recorded_count > 0,
+            "percentage": percentage,
+        })
+
+    # Class-level overall attendance percentage across all enrolled student-sessions
+    if total_sessions_count > 0 and len(student_rows) > 0:
+        total_possible = total_sessions_count * len(student_rows)
+        class_average_percentage = round((total_class_present / total_possible) * 100, 1)
+    else:
+        class_average_percentage = 0.0
+
+    return render(
+        request,
+        "academics/course_attendance.html",
+        {
+            "course": course,
+            "sessions": sessions,
+            "student_rows": student_rows,
+            "total_students": len(student_rows),
+            "total_sessions": total_sessions_count,
+            "class_average_percentage": class_average_percentage,
+        },
+    )
+
+
 @login_required
 @user_passes_test(is_admin)
 def import_attendance(request):

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Course Attendance: {{ course.name }} ({{ course.code }}) | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'manage_courses' %}">Courses</a>
+    / <a href="{% url 'course_detail' course.id %}">{{ course.code }}</a>
+    / <span class="current">View Attendance</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">Course Attendance Register: {{ course.name }}</h1>
+        <p class="page-subtitle">
+            Semester: {{ course.semester }} &bull; Total Enrolled: <strong>{{ total_students }}</strong> students
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if course.is_active %}
+        <a href="{% url 'mark_attendance' course.id %}" class="btn btn-primary">
+            Mark Attendance
+        </a>
+        <a href="{% url 'import_attendance' %}" class="btn btn-secondary">
+            Import Attendance (.xlsx)
+        </a>
+        {% endif %}
+        <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary">
+            Course Details
+        </a>
+    </div>
+</div>
+
+<!-- Overview Metrics Strip -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_students }}</div>
+        <div class="stat-label">Enrolled Students</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_sessions }}</div>
+        <div class="stat-label">Sessions Held</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: {% if class_average_percentage >= 75.0 %}var(--success){% elif total_sessions == 0 %}var(--text-main){% else %}var(--warning){% endif %};">
+            {{ class_average_percentage }}%
+        </div>
+        <div class="stat-label">Class Attendance Rate</div>
+    </div>
+</div>
+
+<!-- Attendance Register Matrix Card -->
+<div class="card" style="padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+            <h2 class="card-title" style="border: none; margin: 0; padding: 0;">
+                Attendance Register
+            </h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+                Complete record of student attendance across all recorded sessions.
+            </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.8rem;">
+            <span class="badge badge-present">P = Present</span>
+            <span class="badge badge-absent">A = Absent</span>
+            <span class="badge badge-leave">L = Leave</span>
+            <span class="badge badge-unrecorded">— = Not Marked</span>
+        </div>
+    </div>
+
+    {% if not student_rows %}
+        <div style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
+            <p style="font-size: 1.05rem; margin-bottom: 0.5rem;">No students are enrolled in this course.</p>
+            <p style="font-size: 0.88rem; margin-bottom: 1.25rem;">Enroll students to start tracking attendance for {{ course.code }}.</p>
+            <a href="{% url 'import_enrollments' %}" class="btn btn-secondary">
+                Import Enrollments (.xlsx)
+            </a>
+        </div>
+    {% else %}
+        {% if total_sessions == 0 %}
+            <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+                <span>No attendance sessions have been held yet for this course. Showing all enrolled students with zero recorded sessions.</span>
+            </div>
+        {% endif %}
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 40px; text-align: center;">#</th>
+                        <th style="min-width: 130px;">Roll Number</th>
+                        <th style="min-width: 170px;">Student Name</th>
+                        {% for session in sessions %}
+                            <th style="min-width: 75px; text-align: center; white-space: nowrap;" title="{{ session.date|date:'l, d F Y' }}">
+                                {{ session.date|date:"d M" }}
+                            </th>
+                        {% endfor %}
+                        <th style="width: 70px; text-align: center;" title="Total Present Sessions">Present</th>
+                        <th style="width: 70px; text-align: center;" title="Total Absent Sessions">Absent</th>
+                        <th style="width: 80px; text-align: center;" title="Total Sessions with Attendance Recorded">Recorded</th>
+                        <th style="width: 90px; text-align: center;" title="Attendance Percentage">% Rate</th>
+                        <th style="min-width: 120px; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in student_rows %}
+                    <tr>
+                        <td style="text-align: center; color: var(--text-muted); font-size: 0.82rem;">
+                            {{ forloop.counter }}
+                        </td>
+                        <td>
+                            <strong>{{ row.student_id }}</strong>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: var(--text-main);">{{ row.name }}</div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted);">{{ row.email }}</div>
+                        </td>
+
+                        {% for s in row.sessions %}
+                            <td style="text-align: center; padding: 0.5rem 0.25rem;">
+                                {% if s.status == "present" %}
+                                    <span class="badge badge-present" title="{{ s.session.date }}: Present">P</span>
+                                {% elif s.status == "absent" %}
+                                    <span class="badge badge-absent" title="{{ s.session.date }}: Absent">A</span>
+                                {% elif s.status == "leave" %}
+                                    <span class="badge badge-leave" title="{{ s.session.date }}: Leave">L</span>
+                                {% else %}
+                                    <span class="badge badge-unrecorded" title="{{ s.session.date }}: Not Marked">—</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+
+                        <td style="text-align: center; font-weight: 700; color: var(--success);">
+                            {{ row.present_count }}
+                        </td>
+                        <td style="text-align: center; font-weight: 700; color: var(--danger);">
+                            {{ row.absent_count }}
+                        </td>
+                        <td style="text-align: center; font-weight: 600; color: var(--text-main);">
+                            {{ row.recorded_count }} / {{ total_sessions }}
+                        </td>
+                        <td style="text-align: center; font-weight: 700;">
+                            {% if total_sessions > 0 %}
+                                <span style="color: {% if row.percentage >= 75.0 %}var(--success){% elif row.percentage >= 60.0 %}var(--warning){% else %}var(--danger){% endif %};">
+                                    {{ row.percentage }}%
+                                </span>
+                            {% else %}
+                                <span style="color: var(--text-muted);">0.0%</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center; white-space: nowrap;">
+                            {% if not row.has_records %}
+                                <span class="badge badge-unrecorded">No Records</span>
+                            {% elif total_sessions > 0 and row.percentage >= 75.0 %}
+                                <span class="badge badge-success">&ge; 75% Eligible</span>
+                            {% elif total_sessions > 0 %}
+                                <span class="badge badge-danger">&lt; 75% Warning</span>
+                            {% else %}
+                                <span class="badge badge-unrecorded">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-glass); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; font-size: 0.85rem; color: var(--text-muted);">
+            <div>
+                PUCIT attendance policy requires a minimum of <strong>75%</strong> attendance to remain eligible for examinations.
+            </div>
+            <div>
+                Showing <strong>{{ student_rows|length }}</strong> enrolled students across <strong>{{ total_sessions }}</strong> recorded sessions.
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
