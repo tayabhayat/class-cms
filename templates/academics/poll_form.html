@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | PUCIT Class CMS{% endblock %}
+{% block nav_polls %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'poll_list' %}">Class Polls</a>
+    / <span class="current">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle">
+            Create an interactive class poll with custom options and participation rules.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'poll_list' %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 750px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.25rem;">
+            {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Course Selection -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.course.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.course.label }}
+            </label>
+            {{ form.course }}
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.course.help_text }}
+            </div>
+            {% if form.course.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.course.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Question -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.question.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.question.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.question }}
+            {% if form.question.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.question.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Description -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.description.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.description.label }}
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.description.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Options Textarea -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.options_text.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.options_text.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.options_text }}
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.options_text.help_text }}
+            </div>
+            {% if form.options_text.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.options_text.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Dates row: opens_at & closes_at -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label for="{{ form.opens_at.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.opens_at.label }} <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.opens_at }}
+                {% if form.opens_at.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.opens_at.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.closes_at.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.closes_at.label }} <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.closes_at }}
+                {% if form.closes_at.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.closes_at.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Results Visibility -->
+        <div class="form-group" style="margin-bottom: 1.75rem;">
+            <label for="{{ form.results_visibility.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.results_visibility.label }}
+            </label>
+            {{ form.results_visibility }}
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.results_visibility.help_text }}
+            </div>
+            {% if form.results_visibility.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.results_visibility.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="btn btn-primary">
+                Create Poll
+            </button>
+            <a href="{% url 'poll_list' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

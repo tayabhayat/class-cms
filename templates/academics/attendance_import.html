@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Import Attendance | PUCIT Class CMS{% endblock %}
+{% block nav_attendance_import %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Import Attendance</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Import Attendance</h1>
+        <p class="page-subtitle">Upload an Excel spreadsheet (.xlsx) to preview and import attendance records.</p>
+    </div>
+    <div>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">Upload Spreadsheet</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">
+            Preview Attendance
+        </button>
+    </form>
+</div>
+
+{% if form.errors %}
+<div class="alert alert-error">
+    <strong>Form errors:</strong>
+    {{ form.errors }}
+</div>
+{% endif %}
+
+{% if errors %}
+<div class="alert alert-error" style="display: block;">
+    <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">Import Warnings and Errors</h3>
+    <ul style="margin-left: 1.25rem;">
+        {% for error in errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+{% if preview %}
+<div class="card">
+    <h2 class="card-title">Preview Results</h2>
+
+    <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+        <div><strong>New records:</strong> <span class="badge" style="background:#dcfce7; color:#15803d;">{{ preview.new|length }}</span></div>
+        <div><strong>Changed records:</strong> <span class="badge" style="background:#fef9c3; color:#a16207;">{{ preview.changed|length }}</span></div>
+        <div><strong>Unchanged records:</strong> <span class="badge" style="background:#f1f5f9; color:#475569;">{{ preview.unchanged|length }}</span></div>
+        <div><strong>Skipped records:</strong> <span class="badge" style="background:#f1f5f9; color:#475569;">{{ skipped_count }}</span></div>
+    </div>
+
+    {% for category, items in preview.items %}
+        <h3 style="margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.05rem;">
+            {{ category|title }} Records ({{ items|length }})
+        </h3>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 140px;">Student ID</th>
+                        <th>Student Name</th>
+                        <th style="width: 120px;">Date</th>
+                        <th style="width: 140px;">Existing Status</th>
+                        <th style="width: 140px;">Imported Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td><strong>{{ item.student_id }}</strong></td>
+                            <td>{{ item.student_name }}</td>
+                            <td>{{ item.date }}</td>
+                            <td>{{ item.existing_status|default:"—" }}</td>
+                            <td>
+                                <span class="badge {% if item.status == 'present' %}badge-student{% else %}badge-admin{% endif %}">
+                                    {{ item.status|title }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                                No records in this category.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endfor %}
+
+    {% if can_confirm %}
+    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.course }}
+            {{ form.file }}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-primary" style="font-size: 1rem; padding: 0.65rem 1.25rem;">
+                Confirm Attendance Import
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

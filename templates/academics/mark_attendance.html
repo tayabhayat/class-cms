@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Mark Attendance - {{ course.code }} | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'dashboard' %}">Courses</a>
+    / <a href="{% url 'course_detail' course.id %}">{{ course.code }}</a>
+    / <span class="current">Mark Attendance</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">Attendance: {{ course.name }}</h1>
+        <p class="page-subtitle">Mark daily student attendance or correct existing sessions.</p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'import_attendance' %}" class="btn btn-secondary">
+            Switch to Excel Import
+        </a>
+        <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary">
+            Back to {{ course.code }}
+        </a>
+    </div>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-error">
+    {{ form.non_field_errors }}
+</div>
+{% endif %}
+
+<div class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; align-items: flex-end; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+            <div>
+                {{ form.date.label_tag }}
+                {{ form.date }}
+            </div>
+            <button type="submit" class="btn btn-secondary" formmethod="get" style="height: 38px;">
+                Load Date
+            </button>
+        </div>
+
+        {% if form.date.errors %}
+        <div class="errors">
+            {{ form.date.errors }}
+        </div>
+        {% endif %}
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">Student ID</th>
+                        <th>Student Name</th>
+                        <th style="width: 180px;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                        <tr>
+                            <td><strong>{{ student.student_id }}</strong></td>
+                            <td>{{ student.get_full_name|default:student.email }}</td>
+                            <td>
+                                <select name="status_{{ student.id }}" required>
+                                    <option value="">Select</option>
+                                    <option value="present" {% if student.current_status == "present" %}selected{% endif %}>
+                                        Present
+                                    </option>
+                                    <option value="absent" {% if student.current_status == "absent" %}selected{% endif %}>
+                                        Absent
+                                    </option>
+                                    {% if student.current_status == "leave" %}
+                                        <option value="leave" selected>
+                                            Leave
+                                        </option>
+                                    {% endif %}
+                                </select>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                                No students enrolled in this course.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if students %}
+        <div style="margin-top: 1rem;">
+            <button type="submit" class="btn btn-primary">
+                Save Attendance
+            </button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

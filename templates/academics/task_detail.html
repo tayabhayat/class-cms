@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }} | PUCIT Class CMS{% endblock %}
+{% block nav_student_tasks %}active{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'task_list' %}">Assignments & Tasks</a>
+    / <span class="current">{{ task.title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary); text-transform: uppercase; margin-bottom: 0.25rem;">
+            {{ task.course.code }} &bull; {{ task.course.name }}
+        </div>
+        <h1 class="page-title">{{ task.title }}</h1>
+        <p class="page-subtitle">
+            Opens: <strong>{{ task.opens_at|date:"d M Y, H:i" }}</strong> &bull;
+            Deadline: <strong>{{ task.deadline|date:"d M Y, H:i" }}</strong> &bull;
+            Policy:
+            {% if task.deadline_policy == "strict" %}
+                <span style="color: var(--danger); font-weight: 600;">Strict (No late submissions)</span>
+            {% else %}
+                <span style="color: var(--warning); font-weight: 600;">Late submissions accepted</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'task_list' %}" class="btn btn-secondary">
+            Back to Tasks
+        </a>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; align-items: start;">
+    <!-- Left Column: Instructions and Submission Form -->
+    <div>
+        <!-- Instructions Card -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <h2 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-dark);">
+                Task Instructions
+            </h2>
+            {% if task.instructions %}
+            <div style="font-size: 0.95rem; color: #334155; line-height: 1.6; white-space: pre-line;">
+                {{ task.instructions }}
+            </div>
+            {% else %}
+            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">
+                No additional instructions provided for this task.
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- Submission Box -->
+        <div class="card">
+            <h2 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text-dark);">
+                {% if submission %}Update Your Submission{% else %}Submit Your Work{% endif %}
+            </h2>
+
+            {% if can_submit %}
+                {% if submission %}
+                <div class="alert alert-info" style="margin-bottom: 1.25rem;">
+                    <span>Uploading a new file or updating your answer will replace your current submission.</span>
+                </div>
+                {% endif %}
+
+                {% if task.is_past_deadline and task.deadline_policy == "allow_late" %}
+                <div class="alert alert-warning" style="margin-bottom: 1.25rem;">
+                    <span>The deadline has passed. Your submission will be recorded as <strong>Late</strong>.</span>
+                </div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger" style="margin-bottom: 1.25rem;">
+                        {% for error in form.non_field_errors %}
+                            <div>{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if task.submission_type != "text" %}
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label for="{{ form.file.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                            {{ form.file.label }}
+                        </label>
+                        {{ form.file }}
+                        {% if form.file.help_text %}
+                        <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                            {{ form.file.help_text }}
+                        </div>
+                        {% endif %}
+                        {% if form.file.errors %}
+                        <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                            {{ form.file.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if task.submission_type != "file" %}
+                    <div class="form-group" style="margin-bottom: 1.25rem;">
+                        <label for="{{ form.text_answer.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                            {{ form.text_answer.label }}
+                        </label>
+                        {{ form.text_answer }}
+                        {% if form.text_answer.errors %}
+                        <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                            {{ form.text_answer.errors|join:", " }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <button type="submit" class="btn btn-primary">
+                        {% if submission %}Update Submission{% else %}Submit Assignment{% endif %}
+                    </button>
+                </form>
+            {% else %}
+                {% if not task.is_open %}
+                <div class="alert alert-info">
+                    <span>This task is scheduled to open on <strong>{{ task.opens_at|date:"d M Y, H:i" }}</strong>. Submissions will open then.</span>
+                </div>
+                {% else %}
+                <div class="alert alert-danger">
+                    <span>The deadline for this task passed on <strong>{{ task.deadline|date:"d M Y, H:i" }}</strong>. The deadline policy is strict, so submissions are now closed.</span>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right Column: Submission Status Summary -->
+    <div>
+        <div class="card">
+            <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-dark);">
+                Your Submission Status
+            </h3>
+
+            {% if submission %}
+            <div style="display: flex; flex-direction: column; gap: 0.85rem;">
+                <div>
+                    <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Status</div>
+                    {% if submission.is_late %}
+                        <span class="badge badge-warning" style="margin-top: 0.2rem;">Submitted (Late)</span>
+                    {% else %}
+                        <span class="badge badge-success" style="margin-top: 0.2rem;">Submitted (On Time)</span>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Submitted At</div>
+                    <div style="font-size: 0.9rem; font-weight: 500; color: var(--text-dark);">
+                        {{ submission.uploaded_at|date:"d M Y, H:i:s" }}
+                    </div>
+                </div>
+
+                {% if submission.file %}
+                <div>
+                    <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Uploaded File</div>
+                    <div style="font-size: 0.88rem; margin-top: 0.25rem;">
+                        <a href="{% url 'download_submission' submission.id %}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem;">
+                            📥 Download ({{ submission.original_filename }})
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if submission.text_answer %}
+                <div>
+                    <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">Text Response</div>
+                    <div style="font-size: 0.88rem; color: #334155; margin-top: 0.25rem; padding: 0.5rem; background: var(--bg-page); border: 1px solid var(--border-color); border-radius: 4px; white-space: pre-wrap; max-height: 150px; overflow-y: auto;">
+                        {{ submission.text_answer }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 1.5rem 0.5rem; color: var(--text-muted);">
+                <span class="badge badge-danger" style="margin-bottom: 0.5rem;">Not Submitted</span>
+                <p style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    You have not yet submitted your work for this assignment.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

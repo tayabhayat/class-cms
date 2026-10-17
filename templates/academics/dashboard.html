@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | PUCIT Class CMS{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Dashboard</span>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-hero">
+    <div class="hero-tag">
+        <span class="hero-dot"></span>
+        <span>PUCIT Class Management System</span>
+    </div>
+    <h1 class="hero-title">Welcome back, {{ request.user.first_name|default:request.user.email }}!</h1>
+    <p class="hero-subtitle">
+        Logged in as <strong>{{ request.user.email }}</strong>
+        {% if request.user.student_id %}&bull; <span class="badge badge-id">{{ request.user.student_id }}</span>{% endif %}
+        {% if request.user.role == "admin" %}&bull; <span class="badge badge-admin">Class Representative / Admin</span>{% endif %}
+    </p>
+</div>
+
+{% if request.user.role == "admin" %}
+<!-- Admin Quick Actions Panel -->
+<div class="card quick-actions-panel">
+    <div class="panel-header">
+        <div class="panel-icon-badge" aria-hidden="true">⚡</div>
+        <div>
+            <h2 class="card-title" style="border: none; margin: 0; padding: 0;">Quick Operations</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Perform course attendance and enrollment administrative tasks</p>
+        </div>
+    </div>
+    <div class="quick-actions" style="margin-top: 1.15rem; margin-bottom: 0;">
+        <a href="{% url 'import_attendance' %}" class="btn btn-primary">
+            Import Attendance (.xlsx)
+        </a>
+        <a href="{% url 'import_enrollments' %}" class="btn btn-secondary">
+            Import Enrollments (.xlsx)
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Courses Section -->
+<section id="courses">
+    <div class="page-header" style="margin-bottom: 1rem;">
+        <h2 class="page-title" style="font-size: 1.25rem;">
+            {% if request.user.role == "student" %}My Enrolled Courses{% else %}Active Courses{% endif %}
+        </h2>
+    </div>
+
+    {% if courses %}
+    <div class="courses-grid">
+        {% for course in courses %}
+        <div class="course-card">
+            <div class="course-card-top">
+                <div class="course-header-row">
+                    <span class="course-code-badge">{{ course.code }}</span>
+                    <span class="course-semester-pill">{{ course.semester }}</span>
+                </div>
+                <h3 class="course-name">{{ course.name }}</h3>
+            </div>
+            <div class="course-actions">
+                <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary btn-sm">
+                    Course Details
+                </a>
+                {% if request.user.role == "student" %}
+                <a href="{% url 'my_attendance' course.id %}" class="btn btn-primary btn-sm">
+                    My Attendance
+                </a>
+                {% elif request.user.role == "admin" %}
+                <a href="{% url 'mark_attendance' course.id %}" class="btn btn-primary btn-sm">
+                    Mark Attendance
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card">
+        <p class="text-muted">No courses assigned yet.</p>
+    </div>
+    {% endif %}
+</section>
+
+<!-- Recent Announcements Section -->
+<section id="announcements">
+    <div class="page-header" style="margin-bottom: 1rem;">
+        <h2 class="page-title" style="font-size: 1.25rem;">Recent Announcements</h2>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <a href="{% url 'announcement_list' %}" class="btn btn-secondary btn-sm">
+                View All Announcements
+            </a>
+            {% if request.user.role == "admin" %}
+            <a href="{% url 'create_announcement' %}" class="btn btn-primary btn-sm">
+                + Post Announcement
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if announcements %}
+        {% for announcement in announcements %}
+        <article class="announcement-item">
+            <div class="announcement-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div class="announcement-avatar" aria-hidden="true">📢</div>
+                    <div>
+                        <h3 class="announcement-title">{{ announcement.title }}</h3>
+                        <div class="announcement-meta">
+                            {% if announcement.created_by %}
+                            Posted by <strong>{{ announcement.created_by.get_full_name|default:announcement.created_by.email }}</strong> on
+                            {% else %}
+                            Posted on
+                            {% endif %}
+                            {{ announcement.created_at|date:"d M Y, H:i" }}
+                        </div>
+                    </div>
+                </div>
+                {% if request.user.role == "admin" %}
+                <div style="display: flex; gap: 0.35rem; flex-shrink: 0;">
+                    <a href="{% url 'edit_announcement' announcement.id %}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem;" title="Edit Announcement">
+                        Edit
+                    </a>
+                    <a href="{% url 'delete_announcement' announcement.id %}" class="btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 0.75rem; color: var(--danger);" title="Delete Announcement">
+                        Delete
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="announcement-body">{{ announcement.message|linebreaksbr }}</div>
+        </article>
+        {% endfor %}
+    {% else %}
+    <div class="card">
+        <p class="text-muted">No announcements posted yet.</p>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}

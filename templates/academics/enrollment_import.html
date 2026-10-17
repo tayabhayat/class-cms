@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Import Course Enrollments | PUCIT Class CMS{% endblock %}
+{% block nav_enrollment_import %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Import Enrollments</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Import Course Enrollments</h1>
+        <p class="page-subtitle">Upload a student roster Excel file (.xlsx) to enroll students into courses.</p>
+    </div>
+    <div>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <h2 class="card-title">Upload Student Roster</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">
+            Preview Enrollments
+        </button>
+    </form>
+</div>
+
+{% if form.errors %}
+<div class="alert alert-error">
+    <strong>Form errors:</strong>
+    {{ form.errors }}
+</div>
+{% endif %}
+
+{% if course and preview %}
+<div class="card">
+    <h2 class="card-title">Preview: {{ course.code }} — {{ course.name }}</h2>
+
+    <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">New Enrollments ({{ preview.new_enrollments|length }})</h3>
+        <ul style="margin-left: 1.25rem;">
+            {% for student in preview.new_enrollments %}
+                <li><strong>{{ student.student_id }}</strong> — {{ student.name }}</li>
+            {% empty %}
+                <li style="color: var(--text-muted);">No new enrollments.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div style="margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">Already Enrolled ({{ preview.already_enrolled|length }})</h3>
+        <ul style="margin-left: 1.25rem;">
+            {% for student_id in preview.already_enrolled %}
+                <li>{{ student_id }}</li>
+            {% empty %}
+                <li style="color: var(--text-muted);">No existing enrollments.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    {% if preview.invalid_ids %}
+    <div class="alert alert-error" style="display: block; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">Invalid Student IDs ({{ preview.invalid_ids|length }})</h3>
+        <ul style="margin-left: 1.25rem;">
+            {% for student_id in preview.invalid_ids %}
+                <li>{{ student_id }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if preview.errors %}
+    <div class="alert alert-error" style="display: block; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem;">Spreadsheet Errors ({{ preview.errors|length }})</h3>
+        <ul style="margin-left: 1.25rem;">
+            {% for error in preview.errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if preview.new_enrollments and not preview.invalid_ids and not preview.errors %}
+    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.course }}
+            {{ form.file }}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-primary" style="font-size: 1rem; padding: 0.65rem 1.25rem;">
+                Confirm Enrollment
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

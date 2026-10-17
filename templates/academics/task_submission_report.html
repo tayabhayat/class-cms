@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Submission Roster - {{ task.title }} | PUCIT Class CMS{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'task_list' %}">Assignments & Tasks</a>
+    / <span class="current">Submission Roster</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary); text-transform: uppercase; margin-bottom: 0.25rem;">
+            {{ task.course.code }} &bull; {{ task.course.name }}
+        </div>
+        <h1 class="page-title">{{ task.title }} — Submissions</h1>
+        <p class="page-subtitle">
+            Deadline: <strong>{{ task.deadline|date:"d M Y, H:i" }}</strong> &bull;
+            Policy: <strong>{{ task.get_deadline_policy_display }}</strong> &bull;
+            Type: <strong>{{ task.get_submission_type_display }}</strong>
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if submitted_count > 0 %}
+        <a href="{% url 'download_task_zip' task.id %}" class="btn btn-primary">
+            📥 Download All (ZIP)
+        </a>
+        {% endif %}
+        <a href="{% url 'edit_task' task.id %}" class="btn btn-secondary">
+            Edit Task
+        </a>
+        <a href="{% url 'task_list' %}" class="btn btn-secondary">
+            Back to Tasks
+        </a>
+    </div>
+</div>
+
+<!-- Stats Summary Grid -->
+<div class="stats-grid">
+    <div class="stat-card" style="padding: 1.25rem;">
+        <div class="stat-label">Total Enrolled</div>
+        <div class="stat-value" style="color: var(--text-dark);">{{ total_enrolled }}</div>
+    </div>
+    <div class="stat-card" style="padding: 1.25rem;">
+        <div class="stat-label">Total Submitted</div>
+        <div class="stat-value" style="color: var(--success);">{{ submitted_count }}</div>
+    </div>
+    <div class="stat-card" style="padding: 1.25rem;">
+        <div class="stat-label">Late Submissions</div>
+        <div class="stat-value" style="color: var(--warning);">{{ late_count }}</div>
+    </div>
+    <div class="stat-card" style="padding: 1.25rem;">
+        <div class="stat-label">Missing</div>
+        <div class="stat-value" style="color: var(--danger);">{{ missing_count }}</div>
+    </div>
+</div>
+
+<!-- Enrolled Student Roster Table -->
+<div class="card" style="padding: 0; overflow-x: auto;">
+    <table class="data-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th style="padding: 0.75rem 1rem; text-align: left;">Student ID</th>
+                <th style="padding: 0.75rem 1rem; text-align: left;">Name</th>
+                <th style="padding: 0.75rem 1rem; text-align: left;">Email</th>
+                <th style="padding: 0.75rem 1rem; text-align: center;">Status</th>
+                <th style="padding: 0.75rem 1rem; text-align: left;">Submitted At</th>
+                <th style="padding: 0.75rem 1rem; text-align: right;">Submission Content</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in roster %}
+            <tr style="border-top: 1px solid var(--border-color);">
+                <td style="padding: 0.75rem 1rem; font-weight: 600; font-family: monospace;">
+                    {{ row.student.student_id|default:"—" }}
+                </td>
+                <td style="padding: 0.75rem 1rem; font-weight: 500;">
+                    {{ row.student.get_full_name|default:row.student.email }}
+                </td>
+                <td style="padding: 0.75rem 1rem; color: var(--text-muted); font-size: 0.88rem;">
+                    {{ row.student.email }}
+                </td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">
+                    <span class="badge {{ row.badge }}">
+                        {{ row.status }}
+                    </span>
+                </td>
+                <td style="padding: 0.75rem 1rem; font-size: 0.85rem; color: var(--text-muted);">
+                    {% if row.submission %}
+                        {{ row.submission.uploaded_at|date:"d M Y, H:i" }}
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td style="padding: 0.75rem 1rem; text-align: right;">
+                    {% if row.submission %}
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
+                            {% if row.submission.file %}
+                            <a href="{% url 'download_submission' row.submission.id %}" class="btn btn-secondary btn-sm" title="Download {{ row.submission.original_filename }}">
+                                📥 File ({{ row.submission.original_filename|truncatechars:20 }})
+                            </a>
+                            {% endif %}
+                            {% if row.submission.text_answer %}
+                            <details style="text-align: left; display: inline-block;">
+                                <summary class="btn btn-secondary btn-sm" style="cursor: pointer;">
+                                    📝 Text
+                                </summary>
+                                <div style="position: absolute; right: 2rem; background: #fff; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); max-width: 400px; z-index: 10; margin-top: 0.25rem; font-size: 0.85rem; white-space: pre-wrap;">
+                                    <strong>Text Answer:</strong>
+                                    <p style="margin-top: 0.5rem; color: #334155;">{{ row.submission.text_answer }}</p>
+                                </div>
+                            </details>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.85rem; font-style: italic;">No submission</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted);">
+                    No students currently enrolled in this course.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}My Attendance - {{ course.code }} | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'dashboard' %}">Courses</a>
+    / <a href="{% url 'course_detail' course.id %}">{{ course.code }}</a>
+    / <span class="current">My Attendance</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">My Attendance: {{ course.name }}</h1>
+        <p class="page-subtitle">
+            Semester: {{ course.semester }}
+            &bull; Student: <strong>{{ request.user.get_full_name|default:request.user.email }}</strong>
+            {% if request.user.student_id %}({{ request.user.student_id }}){% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary">
+            Back to Course Details
+        </a>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_sessions }}</div>
+        <div class="stat-label">Total Sessions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">{{ present_count }}</div>
+        <div class="stat-label">Present</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--danger);">{{ absent_count }}</div>
+        <div class="stat-label">Absent</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--warning);">{{ leave_count }}</div>
+        <div class="stat-label">Leave</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: {% if percentage >= 75.0 %}var(--success){% elif total_sessions == 0 %}var(--text-dark){% else %}var(--danger){% endif %};">
+            {{ percentage }}%
+        </div>
+        <div class="stat-label">Attendance Rate</div>
+    </div>
+</div>
+
+<!-- Attendance History Section -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">
+        <h2 class="card-title" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+            Attendance History
+        </h2>
+        {% if total_sessions > 0 %}
+        <span style="font-size: 0.85rem; color: var(--text-muted);">
+            {% if percentage >= 75.0 %}
+                <span class="badge badge-present">Eligible (&ge; 75%)</span>
+            {% else %}
+                <span class="badge badge-absent">Below 75% Requirement</span>
+            {% endif %}
+        </span>
+        {% endif %}
+    </div>
+
+    {% if attendance_history %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 70px;">#</th>
+                    <th style="width: 220px;">Session Date</th>
+                    <th style="width: 140px;">Status</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in attendance_history %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>
+                        <strong>{{ item.date|date:"l" }}</strong>,
+                        <span class="text-muted">{{ item.date|date:"d M Y" }}</span>
+                    </td>
+                    <td>
+                        {% if item.status == "present" %}
+                            <span class="badge badge-present">Present</span>
+                        {% elif item.status == "absent" %}
+                            <span class="badge badge-absent">Absent</span>
+                        {% elif item.status == "leave" %}
+                            <span class="badge badge-leave">Leave</span>
+                        {% else %}
+                            <span class="badge badge-unrecorded">Not Marked</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.status == "present" %}
+                            <span style="color: var(--success); font-size: 0.85rem;">Attended lecture</span>
+                        {% elif item.status == "absent" %}
+                            <span style="color: var(--danger); font-size: 0.85rem;">Absent</span>
+                        {% elif item.status == "leave" %}
+                            <span style="color: var(--warning); font-size: 0.85rem;">Official leave approved</span>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">No record submitted for this session</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding: 1.5rem 0; text-align: center; color: var(--text-muted);">
+        <p>No attendance sessions have been held yet for this course.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

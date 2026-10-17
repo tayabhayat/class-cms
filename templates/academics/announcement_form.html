@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | PUCIT Class CMS{% endblock %}
+{% block nav_announcements %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'announcement_list' %}">Announcements</a>
+    / <span class="current">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle">
+            {% if is_create %}
+                Draft a new message for all enrolled students and administrators.
+            {% else %}
+                Update the content of this announcement. The original author remains unchanged.
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'announcement_list' %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-error">
+    {{ form.non_field_errors }}
+</div>
+{% endif %}
+
+<div class="card" style="max-width: 720px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.title.id_for_label }}">
+                {{ form.title.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.title }}
+            {% if form.title.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.title.help_text }}
+            </p>
+            {% endif %}
+            {% if form.title.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.title.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.message.id_for_label }}">
+                {{ form.message.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.message }}
+            {% if form.message.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.message.help_text }}
+            </p>
+            {% endif %}
+            {% if form.message.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.message.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #475569;">
+            {% if is_create %}
+                <span>Author Attribution: Published as <strong>{{ request.user.get_full_name|default:request.user.email }}</strong>.</span>
+            {% else %}
+                <span>Author Attribution: Originally created by <strong>{{ announcement.created_by.get_full_name|default:announcement.created_by.email }}</strong> on {{ announcement.created_at|date:"d M Y, H:i" }}.</span>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <button type="submit" class="btn btn-primary">
+                {% if is_create %}Publish Announcement{% else %}Save Changes{% endif %}
+            </button>
+            <a href="{% url 'announcement_list' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Courses | PUCIT Class CMS{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Manage Courses</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Manage Courses</h1>
+        <p class="page-subtitle">
+            View, create, edit, and configure active or inactive courses for PUCIT CMS.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'create_course' %}" class="btn btn-primary">
+            + Add New Course
+        </a>
+    </div>
+</div>
+
+<!-- Summary Statistics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ total_courses }}</div>
+        <div class="stat-label">Total Courses</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">{{ active_courses }}</div>
+        <div class="stat-label">Active Courses</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--text-muted);">{{ inactive_courses }}</div>
+        <div class="stat-label">Inactive Courses</div>
+    </div>
+</div>
+
+<!-- Courses List Card -->
+<div class="card">
+    <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>All Courses</span>
+    </div>
+
+    {% if courses %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 130px;">Code</th>
+                    <th>Course Name</th>
+                    <th style="width: 140px;">Semester</th>
+                    <th style="width: 110px; text-align: center;">Enrolled</th>
+                    <th style="width: 110px; text-align: center;">Sessions</th>
+                    <th style="width: 110px;">Status</th>
+                    <th style="width: 240px; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for course in courses %}
+                <tr>
+                    <td>
+                        <a href="{% url 'course_detail' course.id %}">
+                            <strong>{{ course.code }}</strong>
+                        </a>
+                    </td>
+                    <td>{{ course.name }}</td>
+                    <td>{{ course.semester }}</td>
+                    <td style="text-align: center;">
+                        <span class="badge badge-id">{{ course.enrollment_count }}</span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge badge-id">{{ course.session_count }}</span>
+                    </td>
+                    <td>
+                        {% if course.is_active %}
+                            <span class="badge badge-present">Active</span>
+                        {% else %}
+                            <span class="badge badge-unrecorded">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 0.35rem; justify-content: flex-end;">
+                            <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary btn-sm" title="View Course Details">
+                                View
+                            </a>
+                            <a href="{% url 'edit_course' course.id %}" class="btn btn-secondary btn-sm" title="Edit Course Details">
+                                Edit
+                            </a>
+                            {% if course.is_active %}
+                            <a href="{% url 'toggle_course_status' course.id %}" class="btn btn-secondary btn-sm" style="color: var(--danger);" title="Deactivate Course">
+                                Deactivate
+                            </a>
+                            {% else %}
+                            <a href="{% url 'toggle_course_status' course.id %}" class="btn btn-secondary btn-sm" style="color: var(--success);" title="Activate Course">
+                                Activate
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+        <p>No courses found in the system.</p>
+        <div style="margin-top: 1rem;">
+            <a href="{% url 'create_course' %}" class="btn btn-primary">Create Your First Course</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

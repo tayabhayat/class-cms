@@ -1,0 +1,80 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Django local files & SQLite database
+*.sqlite3
+*.sqlite3-journal
+db.sqlite3
+db.sqlite3.backup
+*.backup
+
+# Sensitive credentials & initial dumps
+*.csv
+student_initial_credentials.csv
+.env
+.env.local
+.env.production
+*.key
+*.pem
+*.cert
+
+# Private User Media Uploads
+media/
+!media/.gitkeep
+
+# Collected Static Files in Production
+staticfiles/
+
+# Logs
+*.log
+local_test.log
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+
+# Student data and source spreadsheets
+*.xlsx
+*.xls
+
+# Ignore environment-specific files, but keep the safe example template
+.env.*
+!.env.example
+
+# Accidental empty file
+/academics/for

@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | PUCIT Class CMS{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'task_list' %}">Assignments & Tasks</a>
+    / <span class="current">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle">
+            Configure assignment requirements, deadline policy, and student submission format.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'task_list' %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 800px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger" style="margin-bottom: 1.25rem;">
+            {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Course & Title -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.course.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.course.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.course }}
+            {% if form.course.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.course.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.title.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.title.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.title }}
+            {% if form.title.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.title.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Instructions -->
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+            <label for="{{ form.instructions.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                {{ form.instructions.label }}
+            </label>
+            {{ form.instructions }}
+            {% if form.instructions.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                    {{ form.instructions.errors|join:", " }}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Dates row: opens_at & deadline -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label for="{{ form.opens_at.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.opens_at.label }} <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.opens_at }}
+                {% if form.opens_at.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.opens_at.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.deadline.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.deadline.label }} <span style="color: var(--danger);">*</span>
+                </label>
+                {{ form.deadline }}
+                {% if form.deadline.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.deadline.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Policy & Type row -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label for="{{ form.deadline_policy.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.deadline_policy.label }}
+                </label>
+                {{ form.deadline_policy }}
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    {{ form.deadline_policy.help_text }}
+                </div>
+                {% if form.deadline_policy.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.deadline_policy.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.submission_type.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.submission_type.label }}
+                </label>
+                {{ form.submission_type }}
+                {% if form.submission_type.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.submission_type.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- File Upload limits row -->
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1.75rem;">
+            <div class="form-group">
+                <label for="{{ form.max_file_size_mb.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.max_file_size_mb.label }}
+                </label>
+                {{ form.max_file_size_mb }}
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    {{ form.max_file_size_mb.help_text }}
+                </div>
+                {% if form.max_file_size_mb.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.max_file_size_mb.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.allowed_extensions.id_for_label }}" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    {{ form.allowed_extensions.label }}
+                </label>
+                {{ form.allowed_extensions }}
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    {{ form.allowed_extensions.help_text }}
+                </div>
+                {% if form.allowed_extensions.errors %}
+                    <div style="color: var(--danger); font-size: 0.85rem; margin-top: 0.25rem;">
+                        {{ form.allowed_extensions.errors|join:", " }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="btn btn-primary">
+                {% if is_create %}Create Task{% else %}Save Changes{% endif %}
+            </button>
+            <a href="{% url 'task_list' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

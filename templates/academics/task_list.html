@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Assignments & Tasks | PUCIT Class CMS{% endblock %}
+{% block nav_tasks %}active{% endblock %}
+{% block nav_student_tasks %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Assignments & Tasks</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Assignments & Tasks</h1>
+        <p class="page-subtitle">
+            {% if request.user.role == "admin" %}
+                Manage coursework deadlines, view student submission rosters, and download submissions.
+            {% else %}
+                View homework assignments, projects, track submission deadlines, and upload your work.
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if request.user.role == "admin" %}
+        <a href="{% url 'create_task' %}" class="btn btn-primary">
+            + Create Assignment
+        </a>
+        {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1rem 1.25rem;">
+    <form method="get" action="{% url 'task_list' %}" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <label for="course_filter" style="font-size: 0.9rem; font-weight: 600; color: var(--text-dark);">
+            Filter by Course:
+        </label>
+        <select name="course" id="course_filter" class="form-control" style="max-width: 280px; padding: 0.4rem 0.75rem;" onchange="this.form.submit()">
+            <option value="">All Courses</option>
+            {% for c in courses %}
+            <option value="{{ c.id }}" {% if selected_course_id == c.id|stringformat:"s" %}selected{% endif %}>
+                {{ c.code }} - {{ c.name }}
+            </option>
+            {% endfor %}
+        </select>
+        {% if selected_course_id %}
+        <a href="{% url 'task_list' %}" class="btn btn-secondary btn-sm">
+            Clear Filter
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+{% if task_data %}
+    {% if request.user.role == "admin" %}
+    <!-- Admin Task Table -->
+    <div class="card" style="padding: 0; overflow-x: auto;">
+        <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 0.75rem 1rem; text-align: left;">Course</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left;">Title</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left;">Opens At</th>
+                    <th style="padding: 0.75rem 1rem; text-align: left;">Deadline</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center;">Submissions</th>
+                    <th style="padding: 0.75rem 1rem; text-align: center;">Policy</th>
+                    <th style="padding: 0.75rem 1rem; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in task_data %}
+                <tr style="border-top: 1px solid var(--border-color);">
+                    <td style="padding: 0.85rem 1rem; font-weight: 600;">
+                        <a href="{% url 'course_detail' item.task.course.id %}">
+                            {{ item.task.course.code }}
+                        </a>
+                    </td>
+                    <td style="padding: 0.85rem 1rem;">
+                        <div style="font-weight: 600; color: var(--text-dark);">
+                            {{ item.task.title }}
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">
+                            {{ item.task.get_submission_type_display }} &bull; Max {{ item.task.max_file_size_mb }}MB
+                        </div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.88rem; color: var(--text-muted);">
+                        {{ item.task.opens_at|date:"d M Y, H:i" }}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; font-size: 0.88rem;">
+                        <div>{{ item.task.deadline|date:"d M Y, H:i" }}</div>
+                        {% if item.task.is_past_deadline %}
+                            <span class="badge badge-danger" style="font-size: 0.7rem;">Expired</span>
+                        {% else %}
+                            <span class="badge badge-success" style="font-size: 0.7rem;">Active</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: center;">
+                        <span style="font-weight: 600; color: var(--text-dark);">
+                            {{ item.submitted_count }} / {{ item.total_enrolled }}
+                        </span>
+                        <div style="font-size: 0.78rem; margin-top: 0.15rem;">
+                            {% if item.late_count %}
+                                <span class="badge badge-warning" style="font-size: 0.7rem;">{{ item.late_count }} late</span>
+                            {% endif %}
+                            {% if item.missing_count %}
+                                <span class="badge badge-danger" style="font-size: 0.7rem;">{{ item.missing_count }} missing</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: center;">
+                        {% if item.task.deadline_policy == "strict" %}
+                            <span class="badge badge-secondary" title="Strict: No submissions allowed past deadline">Strict</span>
+                        {% else %}
+                            <span class="badge badge-info" title="Late allowed">Allow Late</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 1rem; text-align: right; white-space: nowrap;">
+                        <a href="{% url 'task_submission_report' item.task.id %}" class="btn btn-primary btn-sm">
+                            Submissions
+                        </a>
+                        <a href="{% url 'edit_task' item.task.id %}" class="btn btn-secondary btn-sm">
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <!-- Student Task Cards -->
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        {% for item in task_data %}
+        <div class="card" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+                <div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary); text-transform: uppercase; margin-bottom: 0.25rem;">
+                        {{ item.task.course.code }} &bull; {{ item.task.course.name }}
+                    </div>
+                    <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.35rem;">
+                        {{ item.task.title }}
+                    </h2>
+                    <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <span>Opens: <strong>{{ item.task.opens_at|date:"d M Y, H:i" }}</strong></span>
+                        <span>Deadline: <strong>{{ item.task.deadline|date:"d M Y, H:i" }}</strong></span>
+                        <span>Type: <strong>{{ item.task.get_submission_type_display }}</strong></span>
+                        {% if item.task.deadline_policy == "allow_late" %}
+                        <span style="color: var(--warning); font-weight: 600;">(Late submissions allowed)</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0;">
+                    <span class="badge {{ item.status_class }}" style="padding: 0.35rem 0.75rem; font-size: 0.82rem;">
+                        {{ item.status_label }}
+                    </span>
+                    <a href="{% url 'task_detail' item.task.id %}" class="btn btn-primary btn-sm">
+                        {% if item.submission %}
+                            View / Update
+                        {% else %}
+                            View & Submit
+                        {% endif %}
+                    </a>
+                </div>
+            </div>
+
+            {% if item.task.instructions %}
+            <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border-color); font-size: 0.9rem; color: #475569; white-space: pre-line;">
+                {{ item.task.instructions|truncatewords:40 }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+{% else %}
+<div class="card" style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
+    <p style="font-size: 1rem; margin-bottom: 0.5rem;">No assignments or tasks found.</p>
+    {% if request.user.role == "admin" %}
+    <p style="font-size: 0.88rem; margin-bottom: 1rem;">Click below to create the first assignment for your students.</p>
+    <a href="{% url 'create_task' %}" class="btn btn-primary">
+        + Create Assignment
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+

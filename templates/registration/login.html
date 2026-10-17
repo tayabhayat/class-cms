@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Login | PUCIT Class CMS{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="card" style="width: 100%; max-width: 420px; padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <h1 style="font-size: 1.6rem; color: var(--primary); font-weight: 800; margin-bottom: 0.25rem;">
+                PUCIT Class CMS
+            </h1>
+            <p style="color: var(--text-muted); font-size: 0.95rem;">
+                Sign in to your account
+            </p>
+        </div>
+
+        {% if form.errors %}
+        <div class="alert alert-error alert-danger" style="margin-bottom: 1.25rem;">
+            <span>Invalid roll number, email, or password. Please try again.</span>
+        </div>
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div style="margin-bottom: 1.25rem;">
+                <label for="id_username" style="display: block; font-weight: 600; margin-bottom: 0.35rem;">
+                    Roll Number / University Email
+                </label>
+                {{ form.username }}
+                <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.35rem;">
+                    Students: Roll Number (e.g. BITF24A001) &bull; Admins: Email
+                </div>
+            </div>
+
+            <div style="margin-bottom: 0.75rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                    <label for="id_password" style="font-weight: 600;">Password</label>
+                    <a href="{% url 'forgot_password' %}" style="font-size: 0.82rem; color: var(--primary);">
+                        Forgot Password?
+                    </a>
+                </div>
+                {{ form.password }}
+            </div>
+
+            <input type="hidden" name="next" value="{{ next }}">
+            <div style="margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 0.65rem;">
+                    Log In
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

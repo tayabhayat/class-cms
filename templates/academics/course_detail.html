@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}{{ course.name }} ({{ course.code }}) | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'dashboard' %}">Courses</a>
+    / <span class="current">{{ course.code }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">{{ course.name }}</h1>
+        <p class="page-subtitle">Semester: {{ course.semester }}</p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if request.user.role == "student" %}
+        <a href="{% url 'my_attendance' course.id %}" class="btn btn-primary">
+            View My Attendance
+        </a>
+        {% elif request.user.role == "admin" %}
+        <a href="{% url 'edit_course' course.id %}" class="btn btn-secondary">
+            Edit Course
+        </a>
+        <a href="{% url 'manage_courses' %}" class="btn btn-secondary">
+            All Courses
+        </a>
+        {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+{% if request.user.role == "student" %}
+<div class="card">
+    <h2 class="card-title">My Course Activities</h2>
+    <p style="margin-bottom: 1rem; color: var(--text-muted);">
+        Track your attendance history, assignments, and polls for <strong>{{ course.code }}</strong>.
+    </p>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'my_attendance' course.id %}" class="btn btn-primary">
+            View My Attendance
+        </a>
+        <a href="{% url 'task_list' %}?course={{ course.id }}" class="btn btn-secondary">
+            Course Assignments
+        </a>
+        <a href="{% url 'poll_list' %}?course={{ course.id }}" class="btn btn-secondary">
+            Course Polls
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% if request.user.role == "admin" %}
+<div class="card">
+    <h2 class="card-title">Course Management & Activities</h2>
+    <p style="margin-bottom: 1rem; color: var(--text-muted);">
+        Manage course details, assignments, polls, attendance records, or class rosters for <strong>{{ course.code }}</strong>.
+    </p>
+    <div class="quick-actions">
+        <a href="{% url 'edit_course' course.id %}" class="btn btn-secondary">
+            Edit Course Details
+        </a>
+        {% if course.is_active %}
+        <a href="{% url 'create_task' %}?course={{ course.id }}" class="btn btn-primary">
+            + Create Assignment
+        </a>
+        <a href="{% url 'task_list' %}?course={{ course.id }}" class="btn btn-secondary">
+            View Assignments
+        </a>
+        <a href="{% url 'create_poll' %}?course={{ course.id }}" class="btn btn-secondary">
+            + Create Poll
+        </a>
+        <a href="{% url 'poll_list' %}?course={{ course.id }}" class="btn btn-secondary">
+            View Polls
+        </a>
+        <a href="{% url 'mark_attendance' course.id %}" class="btn btn-secondary">
+            Mark Manual Attendance
+        </a>
+        <a href="{% url 'import_attendance' %}" class="btn btn-secondary">
+            Import Attendance (.xlsx)
+        </a>
+        <a href="{% url 'import_enrollments' %}" class="btn btn-secondary">
+            Import Enrollments (.xlsx)
+        </a>
+        <a href="{% url 'toggle_course_status' course.id %}" class="btn btn-secondary" style="color: var(--danger);">
+            Deactivate Course
+        </a>
+        {% else %}
+        <a href="{% url 'toggle_course_status' course.id %}" class="btn btn-secondary" style="color: var(--success);">
+            Activate Course
+        </a>
+        <span style="font-size: 0.85rem; color: var(--text-muted); display: inline-flex; align-items: center; padding-left: 0.5rem;">
+            (Course is inactive: assignments, polls, attendance marking, and roster imports are disabled)
+        </span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2 class="card-title">Course Information</h2>
+    <table style="max-width: 600px;">
+        <tbody>
+            <tr>
+                <th style="width: 180px;">Course Code</th>
+                <td><strong>{{ course.code }}</strong></td>
+            </tr>
+            <tr>
+                <th>Course Name</th>
+                <td>{{ course.name }}</td>
+            </tr>
+            <tr>
+                <th>Semester</th>
+                <td>{{ course.semester }}</td>
+            </tr>
+            <tr>
+                <th>Status</th>
+                <td>
+                    {% if course.is_active %}
+                        <span class="badge badge-student" style="background:#f0fdf4; color:#16a34a; border-color:#bbf7d0;">Active</span>
+                    {% else %}
+                        <span class="badge" style="background:#f1f5f9; color:#64748b;">Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

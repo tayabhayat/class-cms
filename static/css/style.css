@@ -1,0 +1,1284 @@
+/* ==========================================================================
+   PUCIT Class CMS - Dual Genuine Glassmorphism Design System
+   Theme A: Midnight Glass (Default) | Theme B: Aurora Light
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design Tokens & Theme Definitions
+   -------------------------------------------------------------------------- */
+
+/* Theme A: Midnight Glass (Default Root) */
+:root,
+[data-theme="midnight"] {
+  --theme-name: "midnight";
+
+  /* Canvas Base */
+  --bg-canvas: #060913;
+  --bg-page: var(--bg-canvas);
+
+  /* Ambient Orb Lighting (Vibrant chromatic backdrops that shine through glass) */
+  --orb-1: radial-gradient(circle, rgba(37, 99, 235, 0.52) 0%, rgba(29, 78, 216, 0.22) 50%, transparent 70%);
+  --orb-2: radial-gradient(circle, rgba(124, 58, 237, 0.48) 0%, rgba(91, 33, 182, 0.2) 50%, transparent 70%);
+  --orb-3: radial-gradient(circle, rgba(14, 165, 233, 0.38) 0%, rgba(2, 132, 199, 0.15) 50%, transparent 70%);
+  --orb-4: radial-gradient(circle, rgba(244, 63, 94, 0.28) 0%, rgba(190, 18, 60, 0.1) 50%, transparent 70%);
+
+  /* Genuine Translucent Frosted Glass Surfaces */
+  --surface-glass: rgba(15, 23, 42, 0.45);
+  --surface-glass-card: rgba(13, 22, 42, 0.5);
+  --surface-glass-card-hover: rgba(18, 30, 56, 0.6);
+  --surface-glass-header: rgba(10, 17, 34, 0.58);
+  --surface-glass-sidebar: rgba(8, 14, 28, 0.62);
+  --surface-glass-hover: rgba(30, 41, 59, 0.65);
+  --surface-glass-active: rgba(51, 65, 85, 0.55);
+  --bg-card: var(--surface-glass-card);
+
+  /* Directional Specular Gradients (Gives real optical sheen across glass faces) */
+  --glass-gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 100%);
+  --glass-gradient-hero: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(124, 58, 237, 0.14) 50%, rgba(255, 255, 255, 0.03) 100%);
+  --glass-gradient-panel: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(15, 23, 42, 0.45) 100%);
+
+  /* High-Opacity Opaque Surface for Data Tables (Keeps rosters 100% legible) */
+  --surface-table: rgba(11, 18, 33, 0.94);
+  --surface-table-header: rgba(18, 28, 48, 0.98);
+  --surface-table-hover: rgba(30, 41, 59, 0.75);
+
+  /* Glass Borders & Edge Highlights */
+  --border-glass: rgba(255, 255, 255, 0.12);
+  --border-glass-top: rgba(255, 255, 255, 0.24);
+  --border-glass-hover: rgba(255, 255, 255, 0.32);
+  --border-color: var(--border-glass);
+  --glass-specular: rgba(255, 255, 255, 0.18);
+
+  /* Typography */
+  --text-main: #f8fafc;
+  --text-dark: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --hero-title-gradient: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
+
+  /* Accent & Brand Colors */
+  --accent: #38bdf8;
+  --accent-hover: #0ea5e9;
+  --accent-light: rgba(56, 189, 248, 0.18);
+  --accent-glow: rgba(56, 189, 248, 0.35);
+  --primary: #38bdf8;
+  --primary-hover: #0ea5e9;
+  --primary-light: rgba(56, 189, 248, 0.18);
+  --primary-text: #060913;
+
+  /* PUCIT Brand Badging */
+  --brand-pucit: #fda4af;
+  --brand-pucit-bg: rgba(244, 63, 94, 0.22);
+  --brand-pucit-border: rgba(244, 63, 94, 0.45);
+
+  /* Shadows & Ambient Lighting */
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 32px 0 rgba(0, 0, 0, 0.42), 0 2px 6px -1px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 16px 48px -4px rgba(0, 0, 0, 0.6), 0 4px 12px -2px rgba(0, 0, 0, 0.35);
+  --shadow-hover: 0 16px 44px -4px rgba(0, 0, 0, 0.65), 0 0 24px 0 rgba(56, 189, 248, 0.18);
+  --shadow-glow: 0 0 24px rgba(56, 189, 248, 0.35);
+
+  /* Form Controls */
+  --input-bg: rgba(13, 22, 42, 0.72);
+  --input-border: rgba(255, 255, 255, 0.18);
+  --input-text: #f8fafc;
+  --input-focus-border: var(--accent);
+  --input-focus-ring: rgba(56, 189, 248, 0.35);
+
+  /* Status Colors */
+  --success: #4ade80;
+  --success-bg: rgba(34, 197, 94, 0.18);
+  --success-border: rgba(74, 222, 128, 0.4);
+  --danger: #f87171;
+  --danger-bg: rgba(239, 68, 68, 0.18);
+  --danger-border: rgba(248, 113, 113, 0.4);
+  --warning: #fbbf24;
+  --warning-bg: rgba(245, 158, 11, 0.18);
+  --warning-border: rgba(251, 191, 36, 0.4);
+  --info: #38bdf8;
+  --info-bg: rgba(56, 189, 248, 0.18);
+  --info-border: rgba(56, 189, 248, 0.4);
+
+  /* Sidebar Tokens */
+  --sidebar-bg: var(--surface-glass-sidebar);
+  --sidebar-hover: var(--surface-glass-hover);
+  --sidebar-active: var(--accent-light);
+  --sidebar-text: var(--text-muted);
+
+  /* Filter Properties: blur(18px) saturate(145%) */
+  --backdrop-filter: blur(18px) saturate(145%);
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  --transition-normal: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Theme B: Aurora Light */
+[data-theme="aurora"] {
+  --theme-name: "aurora";
+
+  /* Canvas Base */
+  --bg-canvas: #ebf2fa;
+  --bg-page: var(--bg-canvas);
+
+  /* Ambient Orb Lighting (Expansive sky-blue and lavender gradients) */
+  --orb-1: radial-gradient(circle, rgba(186, 230, 253, 0.95) 0%, rgba(147, 197, 253, 0.55) 50%, transparent 70%);
+  --orb-2: radial-gradient(circle, rgba(221, 214, 254, 0.9) 0%, rgba(196, 181, 253, 0.5) 50%, transparent 70%);
+  --orb-3: radial-gradient(circle, rgba(199, 210, 254, 0.8) 0%, rgba(165, 180, 252, 0.4) 50%, transparent 70%);
+  --orb-4: radial-gradient(circle, rgba(254, 205, 211, 0.5) 0%, rgba(253, 164, 175, 0.25) 50%, transparent 70%);
+
+  /* Translucent Frosted White Surfaces */
+  --surface-glass: rgba(255, 255, 255, 0.6);
+  --surface-glass-card: rgba(255, 255, 255, 0.68);
+  --surface-glass-card-hover: rgba(255, 255, 255, 0.85);
+  --surface-glass-header: rgba(255, 255, 255, 0.75);
+  --surface-glass-sidebar: rgba(255, 255, 255, 0.7);
+  --surface-glass-hover: rgba(255, 255, 255, 0.88);
+  --surface-glass-active: rgba(241, 245, 249, 0.9);
+  --bg-card: var(--surface-glass-card);
+
+  /* Directional Specular Gradients */
+  --glass-gradient-card: linear-gradient(135deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.2) 100%);
+  --glass-gradient-hero: linear-gradient(135deg, rgba(219, 234, 254, 0.65) 0%, rgba(237, 233, 254, 0.5) 50%, rgba(255, 255, 255, 0.4) 100%);
+  --glass-gradient-panel: linear-gradient(135deg, rgba(224, 242, 254, 0.7) 0%, rgba(255, 255, 255, 0.5) 100%);
+
+  /* High-Opacity Opaque Surface for Data Tables */
+  --surface-table: rgba(255, 255, 255, 0.96);
+  --surface-table-header: rgba(241, 245, 249, 0.98);
+  --surface-table-hover: rgba(248, 250, 252, 0.95);
+
+  /* Glass Borders & Edge Highlights */
+  --border-glass: rgba(255, 255, 255, 0.85);
+  --border-glass-top: rgba(255, 255, 255, 0.98);
+  --border-glass-hover: rgba(255, 255, 255, 1);
+  --border-color: var(--border-glass);
+  --glass-specular: rgba(255, 255, 255, 0.95);
+
+  /* Typography */
+  --text-main: #0f172a;
+  --text-dark: #0f172a;
+  --text-muted: #475569;
+  --text-subtle: #64748b;
+  --hero-title-gradient: linear-gradient(135deg, #1e3a8a 30%, #6366f1 100%);
+
+  /* Accent & Brand Colors */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-light: rgba(37, 99, 235, 0.14);
+  --accent-glow: rgba(37, 99, 235, 0.25);
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: rgba(37, 99, 235, 0.14);
+  --primary-text: #ffffff;
+
+  /* PUCIT Brand Badging in Aurora */
+  --brand-pucit: #991b1b;
+  --brand-pucit-bg: #fee2e2;
+  --brand-pucit-border: #fecaca;
+
+  /* Soft Blue-Tinted Layered Shadows */
+  --shadow-sm: 0 4px 16px rgba(30, 58, 138, 0.08);
+  --shadow-md: 0 8px 32px 0 rgba(30, 58, 138, 0.1), 0 2px 8px 0 rgba(30, 58, 138, 0.05);
+  --shadow-lg: 0 16px 48px -4px rgba(30, 58, 138, 0.14), 0 4px 16px -2px rgba(30, 58, 138, 0.06);
+  --shadow-hover: 0 16px 44px -4px rgba(30, 58, 138, 0.18), 0 2px 10px 0 rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 24px rgba(37, 99, 235, 0.22);
+
+  /* Form Controls */
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(203, 213, 225, 0.9);
+  --input-text: #0f172a;
+  --input-focus-border: var(--accent);
+  --input-focus-ring: rgba(37, 99, 235, 0.25);
+
+  /* Status Colors */
+  --success: #15803d;
+  --success-bg: rgba(22, 163, 74, 0.12);
+  --success-border: rgba(22, 163, 74, 0.3);
+  --danger: #b91c1c;
+  --danger-bg: rgba(220, 38, 38, 0.12);
+  --danger-border: rgba(220, 38, 38, 0.3);
+  --warning: #b45309;
+  --warning-bg: rgba(217, 119, 6, 0.12);
+  --warning-border: rgba(217, 119, 6, 0.3);
+  --info: #0284c7;
+  --info-bg: rgba(2, 132, 199, 0.12);
+  --info-border: rgba(2, 132, 199, 0.3);
+
+  /* Sidebar Tokens */
+  --sidebar-bg: var(--surface-glass-sidebar);
+  --sidebar-hover: var(--surface-glass-hover);
+  --sidebar-active: var(--accent-light);
+  --sidebar-text: var(--text-muted);
+
+  /* Filter Properties: blur(18px) saturate(145%) */
+  --backdrop-filter: blur(18px) saturate(145%);
+}
+
+/* --------------------------------------------------------------------------
+   2. Reset & Core Base Styles
+   -------------------------------------------------------------------------- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-canvas);
+  color: var(--text-main);
+  line-height: 1.55;
+  font-size: 15px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--transition-normal);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   3. Ambient Background Canvas & Orbs (Refracts through Frosted Glass)
+   -------------------------------------------------------------------------- */
+.ambient-canvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ambient-orb-1 {
+  width: 750px;
+  height: 750px;
+  top: -150px;
+  left: -150px;
+  background: var(--orb-1);
+  filter: blur(90px);
+}
+
+.ambient-orb-2 {
+  width: 800px;
+  height: 800px;
+  bottom: -200px;
+  right: -150px;
+  background: var(--orb-2);
+  filter: blur(100px);
+}
+
+.ambient-orb-3 {
+  width: 600px;
+  height: 600px;
+  top: 18%;
+  right: 5%;
+  background: var(--orb-3);
+  filter: blur(85px);
+}
+
+.ambient-orb-4 {
+  width: 650px;
+  height: 650px;
+  bottom: 12%;
+  left: 15%;
+  background: var(--orb-4);
+  filter: blur(95px);
+}
+
+/* --------------------------------------------------------------------------
+   4. App Shell Layout & Navigation
+   -------------------------------------------------------------------------- */
+.app-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100vh;
+  background: transparent;
+}
+
+/* Sidebar */
+.app-sidebar {
+  width: 250px;
+  background: var(--surface-glass-sidebar);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border-right: 1px solid var(--border-glass);
+  box-shadow: inset -1px 0 1px 0 var(--glass-specular), var(--shadow-md);
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: transform var(--transition-normal), background var(--transition-normal), border-color var(--transition-normal);
+  z-index: 50;
+}
+
+.sidebar-header {
+  padding: 1.25rem 1rem;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.brand-link {
+  color: var(--text-main) !important;
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none !important;
+}
+
+.brand-badge {
+  background: var(--accent);
+  color: var(--primary-text);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-nav {
+  padding: 1rem 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.nav-section-title {
+  padding: 0.75rem 1rem 0.35rem 1rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.nav-item {
+  display: block;
+  padding: 0.6rem 1rem;
+  color: var(--sidebar-text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none !important;
+  border-radius: var(--radius-sm);
+  margin: 0.15rem 0.5rem;
+  transition: all var(--transition-normal);
+}
+
+.nav-item:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--text-main);
+}
+
+.nav-item.active {
+  background-color: var(--sidebar-active);
+  color: var(--accent);
+  font-weight: 600;
+  border-left: 3px solid var(--accent);
+}
+
+.sidebar-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border-glass);
+}
+
+/* Main Content Area */
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: transparent;
+}
+
+/* Top Header */
+.top-header {
+  background: var(--surface-glass-header);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border-bottom: 1px solid var(--border-glass);
+  box-shadow: inset 0 -1px 1px 0 var(--glass-specular), var(--shadow-sm);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  transition: background var(--transition-normal), border-color var(--transition-normal);
+}
+
+.top-header-public {
+  background: var(--surface-glass-header);
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-toggle {
+  display: none;
+  background: var(--surface-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.65rem;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background var(--transition-normal), border-color var(--transition-normal);
+}
+
+.menu-toggle:hover {
+  background: var(--surface-glass-hover);
+}
+
+.breadcrumbs {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.breadcrumbs a {
+  color: var(--text-muted);
+}
+
+.breadcrumbs a:hover {
+  color: var(--accent);
+}
+
+.breadcrumbs span.current {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.user-name {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* --------------------------------------------------------------------------
+   5. Accessible Theme Toggle Button
+   -------------------------------------------------------------------------- */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius-full);
+  background: var(--surface-glass);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border: 1px solid var(--border-glass);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+  color: var(--text-main);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  user-select: none;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--surface-glass-hover);
+  border-color: var(--border-glass-hover);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-md);
+}
+
+.theme-toggle-btn:active {
+  transform: translateY(0);
+}
+
+.theme-toggle-btn .theme-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   6. Badges & Status Chips
+   -------------------------------------------------------------------------- */
+.badge {
+  display: inline-block;
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  line-height: 1.2;
+}
+
+.badge-admin {
+  background-color: var(--brand-pucit-bg);
+  color: var(--brand-pucit);
+  border: 1px solid var(--brand-pucit-border);
+}
+
+.badge-student {
+  background-color: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info-border);
+}
+
+.badge-id {
+  background-color: var(--surface-glass-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border-glass);
+}
+
+.badge-present,
+.badge-success {
+  background-color: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+
+.badge-absent,
+.badge-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.badge-leave,
+.badge-warning {
+  background-color: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+}
+
+.badge-unrecorded,
+.badge-secondary {
+  background-color: var(--surface-glass-hover);
+  color: var(--text-muted);
+  border: 1px solid var(--border-glass);
+}
+
+.badge-info {
+  background-color: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info-border);
+}
+
+/* --------------------------------------------------------------------------
+   7. Cards & Layout Containers (Genuine Frosted Glassmorphism)
+   -------------------------------------------------------------------------- */
+.content-wrapper {
+  padding: 1.5rem;
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  background: transparent;
+}
+
+.page-header {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.page-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Polished Dashboard Hero Section */
+.dashboard-hero {
+  position: relative;
+  background: var(--glass-gradient-hero), var(--surface-glass-card);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass-top);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-md);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem 2rem;
+  margin-bottom: 2rem;
+  overflow: hidden;
+  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.dashboard-hero:hover {
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-hover);
+}
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.hero-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+
+.hero-title {
+  font-size: 1.85rem;
+  font-weight: 800;
+  background: var(--hero-title-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.25;
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+/* Frosted Quick Actions Panel */
+.quick-actions-panel {
+  background: var(--glass-gradient-panel), var(--surface-glass-card);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.panel-icon-badge {
+  font-size: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--accent-light);
+  border: 1px solid var(--border-glass);
+}
+
+/* Generic Card Base */
+.card {
+  position: relative;
+  background: var(--glass-gradient-card), var(--surface-glass-card);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass-top);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-md);
+  border-radius: var(--radius-md);
+  padding: 1.35rem;
+  margin-bottom: 1.5rem;
+  transition: transform var(--transition-normal), 
+              border-color var(--transition-normal), 
+              box-shadow var(--transition-normal),
+              background var(--transition-normal);
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-glass-hover);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-hover);
+}
+
+.card-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border-glass);
+  padding-bottom: 0.5rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat-card {
+  position: relative;
+  background: var(--glass-gradient-card), var(--surface-glass-card);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass-top);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+  border-radius: var(--radius-md);
+  padding: 1.15rem;
+  text-align: center;
+  transition: transform var(--transition-normal), 
+              border-color var(--transition-normal), 
+              box-shadow var(--transition-normal);
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-glass-hover);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-hover);
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin-top: 0.35rem;
+}
+
+/* Course Cards Grid */
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.course-card {
+  position: relative;
+  background: var(--glass-gradient-card), var(--surface-glass-card);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass-top);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+  border-radius: var(--radius-md);
+  padding: 1.45rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 185px;
+  transition: transform var(--transition-normal), 
+              box-shadow var(--transition-normal), 
+              border-color var(--transition-normal),
+              background var(--transition-normal);
+}
+
+.course-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-glass-hover);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-hover);
+}
+
+.course-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.course-code-badge {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 1px solid var(--border-glass);
+  padding: 0.2rem 0.6rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.course-semester-pill {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.course-name {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.35;
+  margin-bottom: 1.25rem;
+}
+
+.course-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-glass);
+}
+
+/* Announcements List */
+.announcement-item {
+  position: relative;
+  padding: 1.35rem;
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass-top);
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
+  background: var(--glass-gradient-card), var(--surface-glass-card);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+  transition: transform var(--transition-normal), 
+              border-color var(--transition-normal), 
+              box-shadow var(--transition-normal);
+}
+
+.announcement-item:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-glass-hover);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-hover);
+}
+
+.announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.announcement-avatar {
+  font-size: 1.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  border: 1px solid var(--border-glass);
+  flex-shrink: 0;
+}
+
+.announcement-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0.15rem;
+}
+
+.announcement-meta {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.announcement-body {
+  font-size: 0.92rem;
+  color: var(--text-main);
+  line-height: 1.6;
+  white-space: pre-line;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-glass);
+}
+
+/* Polls */
+.poll-option-card {
+  position: relative;
+  border: 1px solid var(--border-glass);
+  border-top: 1px solid var(--border-glass-top);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--glass-gradient-card), var(--surface-glass-card);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+  transition: border-color var(--transition-normal), 
+              background-color var(--transition-normal),
+              transform var(--transition-normal);
+}
+
+.poll-option-card:hover {
+  border-color: var(--border-glass-hover);
+  transform: translateY(-1px);
+}
+
+.poll-option-card.selected {
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), 0 0 16px var(--accent-glow);
+}
+
+.poll-bar-container {
+  height: 10px;
+  background-color: var(--surface-glass-hover);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.poll-bar-fill {
+  height: 100%;
+  background-color: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   8. Tables & High-Readability Data Views (Sufficiently Opaque)
+   -------------------------------------------------------------------------- */
+.table-container {
+  overflow-x: auto;
+  background: var(--surface-table);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  margin-bottom: 1.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+th {
+  background: var(--surface-table-header);
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-glass);
+  color: var(--text-main);
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr:hover td {
+  background: var(--surface-table-hover);
+}
+
+table select {
+  max-width: 140px;
+  padding: 0.35rem 0.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   9. Forms, Inputs & Form Controls
+   -------------------------------------------------------------------------- */
+form p {
+  margin-bottom: 1rem;
+}
+
+label {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--text-main);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="file"],
+select,
+textarea {
+  width: 100%;
+  max-width: 450px;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--input-bg);
+  color: var(--input-text);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+select option {
+  background: var(--bg-canvas);
+  color: var(--text-main);
+}
+
+/* --------------------------------------------------------------------------
+   10. Buttons & Interactive Controls
+   -------------------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--transition-normal);
+  text-decoration: none !important;
+  gap: 0.4rem;
+  user-select: none;
+}
+
+.btn-primary,
+button[type="submit"] {
+  background-color: var(--accent);
+  color: var(--primary-text);
+  border: 1px solid transparent;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: all var(--transition-normal);
+}
+
+.btn-primary:hover,
+button[type="submit"]:hover {
+  background-color: var(--accent-hover);
+  color: var(--primary-text);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active,
+button[type="submit"]:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background: var(--surface-glass);
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  color: var(--text-main);
+  border: 1px solid var(--border-glass);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+  background: var(--surface-glass-hover);
+  border-color: var(--border-glass-hover);
+  color: var(--text-main);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-md);
+}
+
+.btn-secondary:active {
+  transform: translateY(0);
+}
+
+.btn-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* --------------------------------------------------------------------------
+   11. Alerts, Flash Messages & Errors
+   -------------------------------------------------------------------------- */
+.messages-container {
+  margin-bottom: 1.5rem;
+}
+
+.alert {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: var(--backdrop-filter);
+  -webkit-backdrop-filter: var(--backdrop-filter);
+  box-shadow: inset 0 1px 1px 0 var(--glass-specular), var(--shadow-sm);
+}
+
+.alert-success {
+  background-color: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
+}
+
+.alert-error,
+.alert-danger {
+  background-color: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
+}
+
+.alert-info {
+  background-color: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info-border);
+}
+
+.alert-warning {
+  background-color: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid var(--warning-border);
+}
+
+.errors {
+  color: var(--danger);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+}
+
+.errors ul {
+  margin-left: 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   12. Focus Indicators & Accessibility
+   -------------------------------------------------------------------------- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.theme-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   13. Responsive Breakpoints & Mobile Drawer
+   -------------------------------------------------------------------------- */
+.sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    transform: translateX(-100%);
+    background: var(--surface-glass-sidebar);
+    backdrop-filter: blur(22px) saturate(145%);
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 90;
+  }
+
+  .sidebar-backdrop.open {
+    display: block;
+  }
+
+  .menu-toggle {
+    display: block;
+  }
+
+  .content-wrapper {
+    padding: 1rem;
+  }
+
+  .top-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .user-profile .user-name {
+    display: none;
+  }
+
+  .hero-title {
+    font-size: 1.45rem;
+  }
+
+  .dashboard-hero {
+    padding: 1.25rem 1.5rem;
+  }
+}

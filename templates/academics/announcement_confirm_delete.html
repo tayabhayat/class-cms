@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Announcement | PUCIT Class CMS{% endblock %}
+{% block nav_announcements %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'announcement_list' %}">Announcements</a>
+    / <span class="current">Delete</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Confirm Announcement Deletion</h1>
+        <p class="page-subtitle">
+            This action cannot be undone. Please confirm before permanently removing this announcement.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'announcement_list' %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 680px;">
+    <div class="alert alert-error" style="margin-bottom: 1.5rem;">
+        <div>
+            <strong>Warning:</strong> You are about to permanently delete this announcement.
+        </div>
+    </div>
+
+    <div style="background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 1.25rem; margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem;">
+            {{ announcement.title }}
+        </h2>
+        <div style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+            {% if announcement.created_by %}
+            Posted by <strong>{{ announcement.created_by.get_full_name|default:announcement.created_by.email }}</strong> on
+            {% else %}
+            Posted on
+            {% endif %}
+            {{ announcement.created_at|date:"d M Y, H:i" }}
+        </div>
+        <div style="font-size: 0.9rem; color: #475569; line-height: 1.5; white-space: pre-line; border-top: 1px solid #e2e8f0; padding-top: 0.75rem;">
+            {{ announcement.message|truncatewords:60 }}
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <button type="submit" class="btn btn-primary" style="background-color: var(--danger); border-color: var(--danger);">
+                Confirm Delete
+            </button>
+            <a href="{% url 'announcement_list' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

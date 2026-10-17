@@ -1,0 +1,255 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PUCIT Class CMS{% endblock %}</title>
+    <!-- Inline anti-FOUC theme script: executes before stylesheet paint -->
+    <script>
+        (function() {
+            try {
+                var stored = localStorage.getItem('cms-theme');
+                var theme = (stored === 'aurora' || stored === 'midnight') ? stored : 'midnight';
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'midnight');
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Fixed Ambient Lighting Orbs for Optical Glass Refraction -->
+    <div class="ambient-canvas" aria-hidden="true">
+        <div class="ambient-orb ambient-orb-1"></div>
+        <div class="ambient-orb ambient-orb-2"></div>
+        <div class="ambient-orb ambient-orb-3"></div>
+        <div class="ambient-orb ambient-orb-4"></div>
+    </div>
+
+    <div class="app-shell">
+        {% if request.user.is_authenticated %}
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-header">
+                <a href="{% url 'dashboard' %}" class="brand-link">
+                    <span>PUCIT CMS</span>
+                    <span class="brand-badge">Class</span>
+                </a>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Navigation</div>
+                <a href="{% url 'dashboard' %}" class="nav-item {% block nav_dashboard %}{% endblock %}">
+                    Dashboard
+                </a>
+
+                {% if request.user.role == "admin" %}
+                    <div class="nav-section-title">Courses & Roster</div>
+                    <a href="{% url 'manage_courses' %}" class="nav-item {% block nav_courses %}{% endblock %}">
+                        Manage Courses
+                    </a>
+                    <a href="{% url 'import_enrollments' %}" class="nav-item {% block nav_enrollment_import %}{% endblock %}">
+                        Import Enrollments
+                    </a>
+                    <a href="{% url 'task_list' %}" class="nav-item {% block nav_tasks %}{% endblock %}">
+                        Assignments & Tasks
+                    </a>
+
+                    <div class="nav-section-title">Attendance Management</div>
+                    <a href="{% url 'import_attendance' %}" class="nav-item {% block nav_attendance_import %}{% endblock %}">
+                        Import Attendance
+                    </a>
+
+                    <div class="nav-section-title">Communication & Feedback</div>
+                    <a href="{% url 'announcement_list' %}" class="nav-item {% block nav_announcements %}{% endblock %}">
+                        Announcements
+                    </a>
+                    <a href="{% url 'poll_list' %}" class="nav-item {% block nav_polls %}{% endblock %}">
+                        Class Polls
+                    </a>
+                {% else %}
+                    <div class="nav-section-title">Academics</div>
+                    <a href="{% url 'dashboard' %}#courses" class="nav-item">
+                        My Courses
+                    </a>
+                    <a href="{% url 'task_list' %}" class="nav-item {% block nav_student_tasks %}{% endblock %}">
+                        Assignments & Tasks
+                    </a>
+                    <a href="{% url 'announcement_list' %}" class="nav-item {% block nav_student_announcements %}{% endblock %}">
+                        Announcements
+                    </a>
+                    <a href="{% url 'poll_list' %}" class="nav-item {% block nav_student_polls %}{% endblock %}">
+                        Class Polls
+                    </a>
+                {% endif %}
+
+                <div class="nav-section-title">Account</div>
+                <a href="{% url 'password_change' %}" class="nav-item {% block nav_password %}{% endblock %}">
+                    Change Password
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-theme-wrapper" style="margin-bottom: 0.65rem;">
+                    <button type="button" class="theme-toggle-btn sidebar-theme-toggle" aria-label="Switch theme" title="Toggle theme" style="width: 100%; justify-content: center;">
+                        <span class="theme-icon" aria-hidden="true">🌙</span>
+                        <span class="theme-label">Midnight</span>
+                    </button>
+                </div>
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary btn-sm" style="width: 100%;">
+                        Log out
+                    </button>
+                </form>
+            </div>
+        </aside>
+        <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+        {% endif %}
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            {% if request.user.is_authenticated %}
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="header-left">
+                    <button type="button" class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+                        ☰
+                    </button>
+                    <div class="breadcrumbs">
+                        <a href="{% url 'dashboard' %}">PUCIT Class CMS</a>
+                        {% block breadcrumb %}{% endblock %}
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <div class="user-profile">
+                        <span class="user-name">
+                            {{ request.user.get_full_name|default:request.user.email }}
+                        </span>
+                        {% if request.user.role == "admin" %}
+                            <span class="badge badge-admin">CR / Admin</span>
+                        {% else %}
+                            <span class="badge badge-student">Student</span>
+                            {% if request.user.student_id %}
+                                <span class="badge badge-id">{{ request.user.student_id }}</span>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Switch theme" title="Toggle theme">
+                        <span class="theme-icon" aria-hidden="true">🌙</span>
+                        <span class="theme-label">Midnight</span>
+                    </button>
+                </div>
+            </header>
+            {% else %}
+            <!-- Public Top Header -->
+            <header class="top-header top-header-public">
+                <div class="header-left">
+                    <div class="breadcrumbs">
+                        <span class="current">PUCIT Class CMS</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button type="button" class="theme-toggle-btn" id="publicThemeToggleBtn" aria-label="Switch theme" title="Toggle theme">
+                        <span class="theme-icon" aria-hidden="true">🌙</span>
+                        <span class="theme-label">Midnight</span>
+                    </button>
+                </div>
+            </header>
+            {% endif %}
+
+            <!-- Page Content -->
+            <main class="content-wrapper">
+                <!-- Notifications / Flash Messages -->
+                {% if messages %}
+                <div class="messages-container">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }}">
+                        <span>{{ message }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // Responsive mobile sidebar handling
+            const menuToggle = document.getElementById('menuToggle');
+            const appSidebar = document.getElementById('appSidebar');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
+            function toggleSidebar(forceState) {
+                if (!appSidebar) return;
+                const shouldOpen = (typeof forceState === 'boolean') ? forceState : !appSidebar.classList.contains('open');
+                appSidebar.classList.toggle('open', shouldOpen);
+                if (sidebarBackdrop) {
+                    sidebarBackdrop.classList.toggle('open', shouldOpen);
+                }
+            }
+
+            if (menuToggle && appSidebar) {
+                menuToggle.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleSidebar();
+                });
+            }
+            if (sidebarBackdrop) {
+                sidebarBackdrop.addEventListener('click', function() {
+                    toggleSidebar(false);
+                });
+            }
+
+            // Theme Management & Dynamic Switching
+            function syncThemeUI(theme) {
+                const isMidnight = theme === 'midnight';
+                const buttons = document.querySelectorAll('.theme-toggle-btn');
+                buttons.forEach(function(btn) {
+                    const icon = btn.querySelector('.theme-icon');
+                    const label = btn.querySelector('.theme-label');
+                    if (icon) {
+                        icon.textContent = isMidnight ? '🌙' : '☀️';
+                    }
+                    if (label) {
+                        label.textContent = isMidnight ? 'Midnight' : 'Aurora';
+                    }
+                    btn.setAttribute('aria-pressed', isMidnight ? 'false' : 'true');
+                    btn.setAttribute('aria-label', 'Current theme: ' + (isMidnight ? 'Midnight Glass' : 'Aurora Light') + '. Click to switch.');
+                    btn.title = 'Switch to ' + (isMidnight ? 'Aurora Light' : 'Midnight Glass') + ' theme';
+                });
+            }
+
+            function handleThemeToggle() {
+                var current = document.documentElement.getAttribute('data-theme') || 'midnight';
+                var next = (current === 'midnight') ? 'aurora' : 'midnight';
+                document.documentElement.setAttribute('data-theme', next);
+                try {
+                    localStorage.setItem('cms-theme', next);
+                } catch (err) {
+                    // Safe handling if localStorage is inaccessible or restricted
+                }
+                syncThemeUI(next);
+            }
+
+            // Initialize all toggle buttons with the current theme state
+            var currentTheme = document.documentElement.getAttribute('data-theme') || 'midnight';
+            syncThemeUI(currentTheme);
+
+            var toggleBtns = document.querySelectorAll('.theme-toggle-btn');
+            toggleBtns.forEach(function(btn) {
+                btn.addEventListener('click', handleThemeToggle);
+            });
+        })();
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

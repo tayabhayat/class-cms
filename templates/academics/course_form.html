@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | PUCIT Class CMS{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'manage_courses' %}">Courses</a>
+    / <span class="current">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle">
+            {% if is_create %}
+                Define a new academic course, semester code, and initial status.
+            {% else %}
+                Update course information. Existing student enrollments and attendance records will remain intact.
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if is_create %}
+        <a href="{% url 'manage_courses' %}" class="btn btn-secondary">
+            Cancel
+        </a>
+        {% else %}
+        <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary">
+            View Course Details
+        </a>
+        <a href="{% url 'manage_courses' %}" class="btn btn-secondary">
+            All Courses
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-error">
+    {{ form.non_field_errors }}
+</div>
+{% endif %}
+
+<div class="card" style="max-width: 680px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.code.id_for_label }}">
+                {{ form.code.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.code }}
+            {% if form.code.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.code.help_text }}
+            </p>
+            {% endif %}
+            {% if form.code.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.code.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.name.id_for_label }}">
+                {{ form.name.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.name }}
+            {% if form.name.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.name.help_text }}
+            </p>
+            {% endif %}
+            {% if form.name.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.name.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.semester.id_for_label }}">
+                {{ form.semester.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.semester }}
+            {% if form.semester.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.semester.help_text }}
+            </p>
+            {% endif %}
+            {% if form.semester.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.semester.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                {{ form.is_active }}
+                <label for="{{ form.is_active.id_for_label }}" style="margin-bottom: 0; font-weight: 500; cursor: pointer;">
+                    {{ form.is_active.label }}
+                </label>
+            </div>
+            {% if form.is_active.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.is_active.help_text }}
+            </p>
+            {% endif %}
+            {% if form.is_active.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.is_active.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <button type="submit" class="btn btn-primary">
+                {% if is_create %}Create Course{% else %}Save Changes{% endif %}
+            </button>
+            <a href="{% url 'manage_courses' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

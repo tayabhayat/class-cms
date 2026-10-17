@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{% if course.is_active %}Deactivate{% else %}Activate{% endif %} {{ course.code }} | PUCIT Class CMS{% endblock %}
+{% block nav_courses %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'manage_courses' %}">Courses</a>
+    / <span class="current">{% if course.is_active %}Deactivate{% else %}Activate{% endif %} {{ course.code }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">
+            {% if course.is_active %}Confirm Course Deactivation{% else %}Confirm Course Activation{% endif %}
+        </h1>
+        <p class="page-subtitle">
+            {{ course.name }} (Semester: {{ course.semester }})
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'manage_courses' %}" class="btn btn-secondary">
+            Cancel & Return to Courses
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 680px;">
+    {% if course.is_active %}
+    <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
+        <div>
+            <strong>Notice:</strong> Deactivating a course changes its visibility and disables active session creation.
+        </div>
+    </div>
+
+    <p style="margin-bottom: 1rem; line-height: 1.6;">
+        Are you sure you want to deactivate <strong>{{ course.code }} — {{ course.name }}</strong>?
+    </p>
+
+    <div style="background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem;">Safety Guarantees:</h3>
+        <ul style="margin-left: 1.25rem; font-size: 0.88rem; color: #475569; line-height: 1.5;">
+            <li>All <strong>{{ enrollment_count }}</strong> enrolled student records will be preserved safely.</li>
+            <li>All <strong>{{ session_count }}</strong> attendance sessions and records remain intact.</li>
+            <li>No data will be deleted or purged from the database.</li>
+            <li>Students will not be able to view or access this course while inactive.</li>
+            <li>New attendance sessions cannot be marked until the course is reactivated.</li>
+        </ul>
+    </div>
+    {% else %}
+    <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+        <div>
+            <strong>Notice:</strong> Activating this course restores full access.
+        </div>
+    </div>
+
+    <p style="margin-bottom: 1rem; line-height: 1.6;">
+        Are you sure you want to activate <strong>{{ course.code }} — {{ course.name }}</strong>?
+    </p>
+
+    <div style="background-color: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+        <h3 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem;">What happens when activated:</h3>
+        <ul style="margin-left: 1.25rem; font-size: 0.88rem; color: #475569; line-height: 1.5;">
+            <li>Enrolled students ({{ enrollment_count }}) will see the course on their dashboard.</li>
+            <li>Attendance marking and Excel imports will be re-enabled for this course.</li>
+            <li>Students can access their attendance summaries.</li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            {% if course.is_active %}
+            <button type="submit" class="btn btn-primary" style="background-color: var(--danger); border-color: var(--danger);">
+                Confirm Deactivation
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-primary" style="background-color: var(--success); border-color: var(--success);">
+                Confirm Activation
+            </button>
+            {% endif %}
+            <a href="{% url 'manage_courses' %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

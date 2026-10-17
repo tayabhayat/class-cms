@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Confirm Close Poll | PUCIT Class CMS{% endblock %}
+{% block nav_polls %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'poll_list' %}">Class Polls</a>
+    / <a href="{% url 'poll_detail' poll.id %}">{{ poll.question|truncatechars:30 }}</a>
+    / <span class="current">Close Poll</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Confirm Close Poll</h1>
+        <p class="page-subtitle">
+            Manually close voting for this class poll before its scheduled deadline.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'poll_detail' poll.id %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</div>
+
+<div class="card" style="max-width: 650px;">
+    <div class="alert alert-warning" style="margin-bottom: 1.25rem;">
+        <div>
+            <strong>Notice:</strong> Once closed, students will no longer be able to cast votes in this poll. Final results will become visible.
+        </div>
+    </div>
+
+    <p style="font-size: 1.05rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem;">
+        {{ poll.question }}
+    </p>
+
+    <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+        Total votes cast so far: <strong>{{ poll.total_votes }}</strong>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="btn btn-secondary" style="background-color: var(--danger); color: #fff; border-color: var(--danger);">
+                Confirm & Close Poll
+            </button>
+            <a href="{% url 'poll_detail' poll.id %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

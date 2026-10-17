@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}{{ poll.question }} | Class Poll{% endblock %}
+{% block nav_polls %}active{% endblock %}
+{% block nav_student_polls %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'poll_list' %}">Class Polls</a>
+    / <span class="current">Poll Details</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="font-size: 0.85rem; font-weight: 600; color: var(--primary); text-transform: uppercase; margin-bottom: 0.25rem;">
+            {% if poll.course %}
+                {{ poll.course.code }} &bull; {{ poll.course.name }}
+            {% else %}
+                General Class Poll
+            {% endif %}
+        </div>
+        <h1 class="page-title">{{ poll.question }}</h1>
+        <p class="page-subtitle">
+            Opens: <strong>{{ poll.opens_at|date:"d M Y, H:i" }}</strong> &bull;
+            Closes: <strong>{{ poll.closes_at|date:"d M Y, H:i" }}</strong> &bull;
+            Status:
+            {% if poll.is_active %}
+                <span class="badge badge-success">Open</span>
+            {% elif poll.is_expired %}
+                <span class="badge badge-secondary">Closed</span>
+            {% else %}
+                <span class="badge badge-info">Scheduled</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if request.user.role == "admin" and poll.is_active %}
+        <a href="{% url 'close_poll' poll.id %}" class="btn btn-secondary" style="color: var(--danger);">
+            Close Poll
+        </a>
+        {% endif %}
+        <a href="{% url 'poll_list' %}" class="btn btn-secondary">
+            Back to Polls
+        </a>
+    </div>
+</div>
+
+{% if poll.description %}
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h2 style="font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-dark);">
+        About this Poll
+    </h2>
+    <div style="font-size: 0.95rem; color: #334155; line-height: 1.6; white-space: pre-line;">
+        {{ poll.description }}
+    </div>
+</div>
+{% endif %}
+
+<div class="card" style="max-width: 750px;">
+    {% if request.user.role == "student" and not user_vote and poll.is_active %}
+        <!-- Voting Form for Students who haven't voted yet -->
+        <h2 style="font-size: 1.15rem; font-weight: 600; margin-bottom: 1rem; color: var(--text-dark);">
+            Select Your Choice
+        </h2>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" style="margin-bottom: 1.25rem;">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.5rem;">
+                {% for choice in form.option %}
+                <label class="poll-option-card" style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                    {{ choice.tag }}
+                    <span style="font-size: 1rem; color: var(--text-dark); font-weight: 500;">
+                        {{ choice.choice_label }}
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+
+            {% if form.option.errors %}
+                <div style="color: var(--danger); font-size: 0.85rem; margin-bottom: 1rem;">
+                    {{ form.option.errors|join:", " }}
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">
+                Submit Vote
+            </button>
+        </form>
+
+    {% else %}
+        <!-- Results / Voted State -->
+        {% if can_view_results %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                <h2 style="font-size: 1.15rem; font-weight: 600; color: var(--text-dark); margin: 0;">
+                    Poll Results
+                </h2>
+                <span class="badge badge-secondary" style="font-size: 0.82rem;">
+                    Total: {{ total_votes }} vote{{ total_votes|pluralize }}
+                </span>
+            </div>
+
+            {% if user_vote %}
+            <div class="alert alert-success" style="margin-bottom: 1.25rem;">
+                <span>You voted for: <strong>{{ user_vote.option.text }}</strong></span>
+            </div>
+            {% endif %}
+
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for res in results_data %}
+                <div class="poll-option-card {% if res.is_selected %}selected{% endif %}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-weight: 500;">
+                        <span style="color: var(--text-dark);">
+                            {{ res.option.text }}
+                            {% if res.is_selected %}
+                                <span class="badge badge-success" style="margin-left: 0.5rem; font-size: 0.72rem;">Your Vote</span>
+                            {% endif %}
+                        </span>
+                        <span style="color: var(--text-muted); font-size: 0.88rem;">
+                            <strong>{{ res.count }}</strong> vote{{ res.count|pluralize }} ({{ res.percentage }}%)
+                        </span>
+                    </div>
+                    <div class="poll-bar-container">
+                        <div class="poll-bar-fill" style="width: {{ res.percentage }}%;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+        {% else %}
+            <!-- Results hidden until poll closes -->
+            <div style="text-align: center; padding: 2rem 1rem;">
+                {% if user_vote %}
+                <div class="alert alert-success" style="margin-bottom: 1.25rem;">
+                    <span>Thank you! Your vote for <strong>{{ user_vote.option.text }}</strong> has been recorded.</span>
+                </div>
+                {% endif %}
+                <h3 style="font-size: 1.05rem; font-weight: 600; color: var(--text-dark); margin-bottom: 0.5rem;">
+                    Results are Hidden
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">
+                    Per the visibility rules for this poll, results will be visible to students once voting officially closes on
+                    <strong>{{ poll.closes_at|date:"d M Y, H:i" }}</strong>.
+                </p>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
