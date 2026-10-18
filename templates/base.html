@@ -54,6 +54,12 @@
                     <a href="{% url 'import_enrollments' %}" class="nav-item {% block nav_enrollment_import %}{% endblock %}">
                         Import Enrollments
                     </a>
+                    <a href="{% url 'admin_student_list' %}" class="nav-item {% block nav_admin_students %}{% endblock %}">
+                        Student Password Resets
+                    </a>
+                    <a href="{% url 'active_users' %}" class="nav-item {% block nav_active_users %}{% endblock %}">
+                        Active Users
+                    </a>
                     <a href="{% url 'task_list' %}" class="nav-item {% block nav_tasks %}{% endblock %}">
                         Assignments & Tasks
                     </a>
@@ -65,7 +71,13 @@
 
                     <div class="nav-section-title">Communication & Feedback</div>
                     <a href="{% url 'announcement_list' %}" class="nav-item {% block nav_announcements %}{% endblock %}">
-                        Announcements
+                        Notice Board
+                    </a>
+                    <a href="{% url 'notification_list' %}" class="nav-item {% block nav_notifications %}{% endblock %}" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>Notifications</span>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="badge badge-admin">{{ unread_notifications_count }}</span>
+                        {% endif %}
                     </a>
                     <a href="{% url 'poll_list' %}" class="nav-item {% block nav_polls %}{% endblock %}">
                         Class Polls
@@ -79,7 +91,13 @@
                         Assignments & Tasks
                     </a>
                     <a href="{% url 'announcement_list' %}" class="nav-item {% block nav_student_announcements %}{% endblock %}">
-                        Announcements
+                        Notice Board
+                    </a>
+                    <a href="{% url 'notification_list' %}" class="nav-item {% block nav_student_notifications %}{% endblock %}" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>Notifications</span>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="badge badge-admin">{{ unread_notifications_count }}</span>
+                        {% endif %}
                     </a>
                     <a href="{% url 'poll_list' %}" class="nav-item {% block nav_student_polls %}{% endblock %}">
                         Class Polls
@@ -139,6 +157,12 @@
                             {% endif %}
                         {% endif %}
                     </div>
+                    <a href="{% url 'notification_list' %}" class="notification-nav-btn" aria-label="Notifications" title="Notifications">
+                        <span aria-hidden="true">🔔</span>
+                        {% if unread_notifications_count > 0 %}
+                            <span class="notification-badge">{{ unread_notifications_count }}</span>
+                        {% endif %}
+                    </a>
                     <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Switch theme" title="Toggle theme">
                         <span class="theme-icon" aria-hidden="true">🌙</span>
                         <span class="theme-label">Midnight</span>
@@ -247,9 +271,41 @@
             toggleBtns.forEach(function(btn) {
                 btn.addEventListener('click', handleThemeToggle);
             });
+
+            // Password Show/Hide Visibility Toggles
+            function initPasswordToggles() {
+                var passwordToggles = document.querySelectorAll('.password-toggle-btn');
+                passwordToggles.forEach(function(btn) {
+                    if (btn.dataset.initialized) return;
+                    btn.dataset.initialized = 'true';
+
+                    btn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        var wrapper = btn.closest('.password-input-wrapper');
+                        var input = wrapper ? wrapper.querySelector('input') : null;
+                        if (!input) return;
+
+                        var isPassword = input.getAttribute('type') === 'password';
+                        input.setAttribute('type', isPassword ? 'text' : 'password');
+
+                        var eyeOpen = btn.querySelector('.eye-open');
+                        var eyeClosed = btn.querySelector('.eye-closed');
+                        if (eyeOpen && eyeClosed) {
+                            eyeOpen.style.display = isPassword ? 'none' : 'inline-block';
+                            eyeClosed.style.display = isPassword ? 'inline-block' : 'none';
+                        }
+
+                        var newLabel = isPassword ? 'Hide password' : 'Show password';
+                        btn.setAttribute('aria-label', newLabel);
+                        btn.title = newLabel;
+                    });
+                });
+            }
+            initPasswordToggles();
         })();
     </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>
-

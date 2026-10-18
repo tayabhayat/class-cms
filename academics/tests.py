@@ -15,6 +15,9 @@ from academics.models import (
     AttendanceSession,
     Attendance,
     Announcement,
+    CourseResource,
+    CourseLink,
+    Notification,
     SubmissionTask,
     Submission,
     Poll,
@@ -2144,3 +2147,872 @@ class AdminCourseAttendanceViewerTests(TestCase):
         res = self.client.get(reverse("course_detail", kwargs={"course_id": self.course.id}))
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, self.view_url)
+
+
+class AdminAttendanceEditingTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="admin_attendance@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.ADMIN,
+        )
+        self.student1 = User.objects.create_user(
+            email="stud1@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A010",
+            first_name="Amina",
+            last_name="Khan",
+            must_change_password=False,
+        )
+        self.student2 = User.objects.create_user(
+            email="stud2@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A011",
+            first_name="Hamza",
+            last_name="Raza",
+            must_change_password=False,
+        )
+        self.unenrolled_student = User.objects.create_user(
+            email="unenrolled@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A099",
+            first_name="Other",
+            last_name="Student",
+            must_change_password=False,
+        )
+        self.course = Course.objects.create(
+            code="CS-201",
+            name="Data Structures",
+            semester="Semester 3",
+            is_active=True,
+        )
+        self.other_course = Course.objects.create(
+            code="CS-202",
+            name="Algorithms",
+            semester="Semester 4",
+            is_active=True,
+        )
+        Enrollment.objects.create(student=self.student1, course=self.course)
+        Enrollment.objects.create(student=self.student2, course=self.course)
+
+        self.date1 = date(2026, 10, 1)
+        self.date2 = date(2026, 10, 8)
+
+        self.session1 = AttendanceSession.objects.create(
+            course=self.course,
+            date=self.date1,
+            created_by=self.admin,
+        )
+        self.session2 = AttendanceSession.objects.create(
+            course=self.course,
+            date=self.date2,
+            created_by=self.admin,
+        )
+
+        # Initial attendance: student1 present, student2 absent in session1
+        self.att1_s1 = Attendance.objects.create(
+            session=self.session1,
+            student=self.student1,
+            status=Attendance.Status.PRESENT,
+        )
+        self.att1_s2 = Attendance.objects.create(
+            session=self.session1,
+            student=self.student2,
+            status=Attendance.Status.ABSENT,
+        )
+
+        # Initial attendance in session2: both present
+        self.att2_s1 = Attendance.objects.create(
+            session=self.session2,
+            student=self.student1,
+            status=Attendance.Status.PRESENT,
+        )
+        self.att2_s2 = Attendance.objects.create(
+            session=self.session2,
+            student=self.student2,
+            status=Attendance.Status.PRESENT,
+        )
+
+        self.edit_picker_url = reverse(
+            "edit_attendance_picker", kwargs={"course_id": self.course.id}
+        )
+        self.edit_session1_url = reverse(
+            "edit_attendance_session",
+            kwargs={"course_id": self.course.id, "session_id": self.session1.id},
+        )
+
+    def test_permission_anonymous_user_redirected(self):
+        res_get = self.client.get(self.edit_session1_url)
+        self.assertEqual(res_get.status_code, 302)
+        self.assertIn("/login", res_get.url)
+
+        res_post = self.client.post(self.edit_session1_url, {f"status_{self.student1.id}": "absent"})
+        self.assertEqual(res_post.status_code, 302)
+        self.assertIn("/login", res_post.url)
+
+    def test_permission_student_user_denied(self):
+        self.client.force_login(self.student1)
+        res_get = self.client.get(self.edit_session1_url)
+        self.assertEqual(res_get.status_code, 302)
+        self.assertIn("/login", res_get.url)
+
+        res_post = self.client.post(self.edit_session1_url, {f"status_{self.student1.id}": "absent"})
+        self.assertEqual(res_post.status_code, 302)
+        self.att1_s1.refresh_from_db()
+        self.assertEqual(self.att1_s1.status, Attendance.Status.PRESENT)
+
+    def test_admin_can_view_edit_page(self):
+        self.client.force_login(self.admin)
+        res = self.client.get(self.edit_session1_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context["selected_session"], self.session1)
+        self.assertEqual(len(res.context["students"]), 2)
+        self.assertContains(res, "BITF24A010")
+        self.assertContains(res, "BITF24A011")
+
+    def test_edit_single_record_present_to_absent(self):
+        self.client.force_login(self.admin)
+        res = self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "absent",
+                f"status_{self.student2.id}": "absent",
+            },
+        )
+        self.assertRedirects(res, self.edit_session1_url)
+        self.att1_s1.refresh_from_db()
+        self.assertEqual(self.att1_s1.status, Attendance.Status.ABSENT)
+
+    def test_edit_single_record_absent_to_present(self):
+        self.client.force_login(self.admin)
+        res = self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "present",
+                f"status_{self.student2.id}": "present",
+            },
+        )
+        self.assertRedirects(res, self.edit_session1_url)
+        self.att1_s2.refresh_from_db()
+        self.assertEqual(self.att1_s2.status, Attendance.Status.PRESENT)
+
+    def test_edit_multiple_students_simultaneously(self):
+        self.client.force_login(self.admin)
+        res = self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "absent",
+                f"status_{self.student2.id}": "present",
+            },
+        )
+        self.assertRedirects(res, self.edit_session1_url)
+        self.att1_s1.refresh_from_db()
+        self.att1_s2.refresh_from_db()
+        self.assertEqual(self.att1_s1.status, Attendance.Status.ABSENT)
+        self.assertEqual(self.att1_s2.status, Attendance.Status.PRESENT)
+
+    def test_unrelated_sessions_and_dates_remain_unchanged(self):
+        self.client.force_login(self.admin)
+        self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "absent",
+                f"status_{self.student2.id}": "absent",
+            },
+        )
+        self.att2_s1.refresh_from_db()
+        self.att2_s2.refresh_from_db()
+        self.assertEqual(self.att2_s1.status, Attendance.Status.PRESENT)
+        self.assertEqual(self.att2_s2.status, Attendance.Status.PRESENT)
+
+    def test_invalid_course_session_combination_returns_404(self):
+        self.client.force_login(self.admin)
+        invalid_url = reverse(
+            "edit_attendance_session",
+            kwargs={"course_id": self.other_course.id, "session_id": self.session1.id},
+        )
+        res = self.client.get(invalid_url)
+        self.assertEqual(res.status_code, 404)
+
+        res_post = self.client.post(
+            invalid_url, {f"status_{self.student1.id}": "absent"}
+        )
+        self.assertEqual(res_post.status_code, 404)
+
+    def test_invalid_attendance_status_rejected(self):
+        self.client.force_login(self.admin)
+        res = self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "not_a_real_status",
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        messages_list = list(get_messages(res.wsgi_request))
+        self.assertTrue(
+            any("Invalid attendance status" in m.message for m in messages_list)
+        )
+        self.att1_s1.refresh_from_db()
+        self.assertEqual(self.att1_s1.status, Attendance.Status.PRESENT)
+
+    def test_unenrolled_student_status_rejected(self):
+        self.client.force_login(self.admin)
+        res = self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.unenrolled_student.id}": "present",
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        messages_list = list(get_messages(res.wsgi_request))
+        self.assertTrue(
+            any("is not enrolled" in m.message for m in messages_list)
+        )
+        self.assertFalse(
+            Attendance.objects.filter(
+                session=self.session1, student=self.unenrolled_student
+            ).exists()
+        )
+
+    def test_no_duplicate_attendance_or_session_records_created(self):
+        self.client.force_login(self.admin)
+        initial_sessions_count = AttendanceSession.objects.filter(course=self.course).count()
+        initial_attendance_count = Attendance.objects.filter(session=self.session1).count()
+
+        # Submit multiple edits
+        self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "absent",
+                f"status_{self.student2.id}": "present",
+            },
+        )
+        self.client.post(
+            self.edit_session1_url,
+            {
+                f"status_{self.student1.id}": "present",
+                f"status_{self.student2.id}": "absent",
+            },
+        )
+
+        self.assertEqual(
+            AttendanceSession.objects.filter(course=self.course).count(),
+            initial_sessions_count,
+        )
+        self.assertEqual(
+            Attendance.objects.filter(session=self.session1).count(),
+            initial_attendance_count,
+        )
+
+    def test_picker_with_no_sessions_renders_gracefully(self):
+        self.client.force_login(self.admin)
+        empty_course = Course.objects.create(
+            code="CS-999", name="Empty Sessions Course", semester="Semester 1"
+        )
+        picker_url = reverse(
+            "edit_attendance_picker", kwargs={"course_id": empty_course.id}
+        )
+        res = self.client.get(picker_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "No attendance sessions have been recorded")
+
+    def test_links_exist_in_course_detail_and_attendance_viewer(self):
+        self.client.force_login(self.admin)
+        res_detail = self.client.get(
+            reverse("course_detail", kwargs={"course_id": self.course.id})
+        )
+        self.assertEqual(res_detail.status_code, 200)
+        self.assertContains(res_detail, self.edit_picker_url)
+
+        res_viewer = self.client.get(
+            reverse("view_attendance", kwargs={"course_id": self.course.id})
+        )
+        self.assertEqual(res_viewer.status_code, 200)
+        self.assertContains(res_viewer, self.edit_session1_url)
+        self.assertContains(res_viewer, self.edit_picker_url)
+
+
+class CourseNoticeBoardTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="admin_notice@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.ADMIN,
+            first_name="Notice",
+            last_name="Admin",
+            must_change_password=False,
+        )
+        self.student1 = User.objects.create_user(
+            email="student1_notice@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A501",
+            first_name="Ali",
+            last_name="Raza",
+            must_change_password=False,
+        )
+        self.student2 = User.objects.create_user(
+            email="student2_notice@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A502",
+            first_name="Bilal",
+            last_name="Tariq",
+            must_change_password=False,
+        )
+        self.course_a = Course.objects.create(
+            code="CS-301",
+            name="Database Systems",
+            semester="Fall 2026",
+            is_active=True,
+        )
+        self.course_b = Course.objects.create(
+            code="CS-302",
+            name="Computer Networks",
+            semester="Fall 2026",
+            is_active=True,
+        )
+        Enrollment.objects.create(course=self.course_a, student=self.student1)
+        Enrollment.objects.create(course=self.course_b, student=self.student2)
+
+        self.list_url = reverse("announcement_list")
+        self.create_url = reverse("create_announcement")
+
+    def test_create_course_specific_notice_and_notifications(self):
+        self.client.force_login(self.admin)
+        post_data = {
+            "title": "DBMS Lab Evaluation Schedule",
+            "message": "Evaluation will take place next Monday during normal lab hours.",
+            "course": self.course_a.id,
+            "is_published": "on",
+            "_has_published": "1",
+        }
+        res = self.client.post(self.create_url, post_data)
+        self.assertEqual(res.status_code, 302)
+
+        notice = Announcement.objects.get(title="DBMS Lab Evaluation Schedule")
+        self.assertEqual(notice.course, self.course_a)
+        self.assertTrue(notice.is_published)
+
+        # Enrolled student 1 received notification
+        notifs_student1 = Notification.objects.filter(recipient=self.student1, content_id=notice.id)
+        self.assertEqual(notifs_student1.count(), 1)
+        self.assertIn("DBMS Lab Evaluation Schedule", notifs_student1.first().title)
+
+        # Unenrolled student 2 received NO notification
+        notifs_student2 = Notification.objects.filter(recipient=self.student2, content_id=notice.id)
+        self.assertEqual(notifs_student2.count(), 0)
+
+    def test_create_general_notice_and_notifications(self):
+        self.client.force_login(self.admin)
+        post_data = {
+            "title": "Campus Closed on Thursday",
+            "message": "Campus will remain closed on Thursday due to local holiday.",
+            "course": "",
+            "is_published": "on",
+            "_has_published": "1",
+        }
+        res = self.client.post(self.create_url, post_data)
+        self.assertEqual(res.status_code, 302)
+
+        notice = Announcement.objects.get(title="Campus Closed on Thursday")
+        self.assertIsNone(notice.course)
+
+        # Both students received notifications
+        self.assertTrue(Notification.objects.filter(recipient=self.student1, content_id=notice.id).exists())
+        self.assertTrue(Notification.objects.filter(recipient=self.student2, content_id=notice.id).exists())
+
+    def test_student_notice_board_isolation(self):
+        Announcement.objects.create(
+            title="Notice for CS-301",
+            message="Content for CS-301",
+            course=self.course_a,
+            created_by=self.admin,
+            is_published=True,
+        )
+        Announcement.objects.create(
+            title="Notice for CS-302",
+            message="Content for CS-302",
+            course=self.course_b,
+            created_by=self.admin,
+            is_published=True,
+        )
+        Announcement.objects.create(
+            title="Notice for Everyone",
+            message="General content",
+            course=None,
+            created_by=self.admin,
+            is_published=True,
+        )
+
+        self.client.force_login(self.student1)
+        res = self.client.get(self.list_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Notice for CS-301")
+        self.assertContains(res, "Notice for Everyone")
+        self.assertNotContains(res, "Notice for CS-302")
+
+        # Student 1 accessing filter for enrolled course A
+        res_a = self.client.get(f"{self.list_url}?course={self.course_a.id}")
+        self.assertEqual(res_a.status_code, 200)
+        self.assertContains(res_a, "Notice for CS-301")
+
+        # Student 1 attempting to access filter for unenrolled course B gets 403 Forbidden
+        res_b = self.client.get(f"{self.list_url}?course={self.course_b.id}")
+        self.assertEqual(res_b.status_code, 403)
+
+    def test_pinned_notices_ordered_first(self):
+        older_pinned = Announcement.objects.create(
+            title="Important Rules (Pinned)",
+            message="Follow all lab rules strictly.",
+            course=self.course_a,
+            created_by=self.admin,
+            is_pinned=True,
+            is_published=True,
+        )
+        Announcement.objects.filter(id=older_pinned.id).update(
+            created_at=timezone.now() - timedelta(days=5)
+        )
+        older_pinned.refresh_from_db()
+
+        newer_regular = Announcement.objects.create(
+            title="Quiz Rescheduled (Regular)",
+            message="Quiz rescheduled to Friday.",
+            course=self.course_a,
+            created_by=self.admin,
+            is_pinned=False,
+            is_published=True,
+        )
+
+        self.client.force_login(self.student1)
+        res = self.client.get(self.list_url)
+        notices = list(res.context["announcements"])
+        self.assertEqual(notices[0], older_pinned)
+        self.assertEqual(notices[1], newer_regular)
+
+    def test_unpublished_draft_hidden_from_students(self):
+        draft_notice = Announcement.objects.create(
+            title="Draft Exam Schedule",
+            message="Secret tentative schedule.",
+            course=self.course_a,
+            created_by=self.admin,
+            is_published=False,
+        )
+
+        # Admin can view draft in list
+        self.client.force_login(self.admin)
+        res_admin = self.client.get(self.list_url)
+        self.assertContains(res_admin, "Draft Exam Schedule")
+        self.assertContains(res_admin, "Draft (Unpublished)")
+
+        # Student cannot view draft in list or detail
+        self.client.force_login(self.student1)
+        res_student = self.client.get(self.list_url)
+        self.assertNotContains(res_student, "Draft Exam Schedule")
+
+        detail_url = reverse("announcement_detail", kwargs={"announcement_id": draft_notice.id})
+        res_detail = self.client.get(detail_url)
+        self.assertEqual(res_detail.status_code, 404)
+
+    def test_publishing_draft_triggers_notifications_once(self):
+        draft_notice = Announcement.objects.create(
+            title="Tentative Workshop",
+            message="Planning a workshop.",
+            course=self.course_a,
+            created_by=self.admin,
+            is_published=False,
+        )
+        self.assertEqual(Notification.objects.count(), 0)
+
+        # Admin publishes draft
+        self.client.force_login(self.admin)
+        edit_url = reverse("edit_announcement", kwargs={"announcement_id": draft_notice.id})
+        res_publish = self.client.post(edit_url, {
+            "title": "Confirmed Workshop",
+            "message": "Workshop confirmed.",
+            "course": self.course_a.id,
+            "is_published": "on",
+            "_has_published": "1",
+        })
+        self.assertEqual(res_publish.status_code, 302)
+        self.assertEqual(Notification.objects.filter(recipient=self.student1).count(), 1)
+
+        # Admin edits again (does not re-notify)
+        res_edit2 = self.client.post(edit_url, {
+            "title": "Confirmed Workshop - Room Changed",
+            "message": "Room changed to Lab 3.",
+            "course": self.course_a.id,
+            "is_published": "on",
+            "_has_published": "1",
+        })
+        self.assertEqual(res_edit2.status_code, 302)
+        self.assertEqual(Notification.objects.filter(recipient=self.student1).count(), 1)
+
+    def test_notice_detail_permissions(self):
+        notice_a = Announcement.objects.create(
+            title="Notice Course A",
+            message="Details A",
+            course=self.course_a,
+            created_by=self.admin,
+            is_published=True,
+        )
+        notice_b = Announcement.objects.create(
+            title="Notice Course B",
+            message="Details B",
+            course=self.course_b,
+            created_by=self.admin,
+            is_published=True,
+        )
+
+        self.client.force_login(self.student1)
+        res_a = self.client.get(reverse("announcement_detail", kwargs={"announcement_id": notice_a.id}))
+        self.assertEqual(res_a.status_code, 200)
+        self.assertContains(res_a, "Details A")
+
+        # Student 1 attempting to view Notice B gets 403 Forbidden
+        res_b = self.client.get(reverse("announcement_detail", kwargs={"announcement_id": notice_b.id}))
+        self.assertEqual(res_b.status_code, 403)
+
+
+class StudyMaterialsAndLinksTests(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            email="admin_res@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.ADMIN,
+            first_name="Resource",
+            last_name="Admin",
+            must_change_password=False,
+        )
+        self.student1 = User.objects.create_user(
+            email="student1_res@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A511",
+            first_name="Hamza",
+            last_name="Ali",
+            must_change_password=False,
+        )
+        self.student2 = User.objects.create_user(
+            email="student2_res@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A512",
+            first_name="Usman",
+            last_name="Ghani",
+            must_change_password=False,
+        )
+        self.course = Course.objects.create(
+            code="CS-201",
+            name="Data Structures & Algorithms",
+            semester="Fall 2026",
+            is_active=True,
+        )
+        Enrollment.objects.create(course=self.course, student=self.student1)
+
+        self.resources_url = reverse("course_resources", kwargs={"course_id": self.course.id})
+        self.upload_url = reverse("upload_course_resource", kwargs={"course_id": self.course.id})
+        self.add_link_url = reverse("create_course_link", kwargs={"course_id": self.course.id})
+
+    def test_admin_can_upload_valid_study_material(self):
+        self.client.force_login(self.admin)
+        dummy_file = SimpleUploadedFile("lecture1_arrays.pdf", b"%PDF-1.4 dummy pdf content", content_type="application/pdf")
+        post_data = {
+            "title": "Lecture 1: Arrays and Dynamic Sizing",
+            "category": "lecture_notes",
+            "description": "Introductory slides and complexity discussion.",
+            "file": dummy_file,
+            "is_published": "on",
+            "_has_published": "1",
+        }
+        res = self.client.post(self.upload_url, post_data)
+        self.assertEqual(res.status_code, 302)
+        self.assertRedirects(res, self.resources_url)
+
+        resource = CourseResource.objects.get(title="Lecture 1: Arrays and Dynamic Sizing")
+        self.assertEqual(resource.course, self.course)
+        self.assertEqual(resource.original_filename, "lecture1_arrays.pdf")
+        self.assertTrue(resource.file_size > 0)
+        self.assertTrue(resource.is_published)
+
+        # Enrolled student received notification
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.student1,
+                content_type="course_resource",
+                content_id=resource.id,
+            ).exists()
+        )
+
+    def test_upload_rejects_dangerous_file_extensions(self):
+        self.client.force_login(self.admin)
+        for bad_name in ["malware.exe", "script.sh", "backdoor.php", "hack.bat"]:
+            bad_file = SimpleUploadedFile(bad_name, b"binary content", content_type="application/octet-stream")
+            res = self.client.post(self.upload_url, {
+                "title": f"Test {bad_name}",
+                "category": "other",
+                "file": bad_file,
+            })
+            self.assertEqual(res.status_code, 200)
+            self.assertIn("file", res.context["form"].errors)
+
+    def test_upload_rejects_oversized_file(self):
+        self.client.force_login(self.admin)
+        large_size = 26 * 1024 * 1024
+        large_file = SimpleUploadedFile("huge_file.pdf", b"0" * large_size, content_type="application/pdf")
+
+        res = self.client.post(self.upload_url, {
+            "title": "Too Large File",
+            "category": "book",
+            "file": large_file,
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("file", res.context["form"].errors)
+
+    def test_study_material_download_permissions(self):
+        dummy_file = SimpleUploadedFile("dsa_cheatsheet.pdf", b"%PDF-1.4 sample content", content_type="application/pdf")
+        resource = CourseResource.objects.create(
+            course=self.course,
+            title="DSA Cheatsheet",
+            category="study_guide",
+            file=dummy_file,
+            original_filename="dsa_cheatsheet.pdf",
+            file_size=len(b"%PDF-1.4 sample content"),
+            uploaded_by=self.admin,
+            is_published=True,
+        )
+        download_url = reverse("download_course_resource", kwargs={"resource_id": resource.id})
+
+        # 1. Enrolled student can download
+        self.client.force_login(self.student1)
+        res_student1 = self.client.get(download_url)
+        self.assertEqual(res_student1.status_code, 200)
+        self.assertEqual(res_student1["Content-Type"], "application/pdf")
+
+        # 2. Unenrolled student gets 403 Forbidden
+        self.client.force_login(self.student2)
+        res_student2 = self.client.get(download_url)
+        self.assertEqual(res_student2.status_code, 403)
+
+        # 3. Unauthenticated user gets redirected to login
+        self.client.logout()
+        res_anon = self.client.get(download_url)
+        self.assertEqual(res_anon.status_code, 302)
+        self.assertIn("/login", res_anon.url)
+
+    def test_study_material_edit_and_delete(self):
+        dummy_file = SimpleUploadedFile("notes.pdf", b"%PDF-1.4 notes", content_type="application/pdf")
+        resource = CourseResource.objects.create(
+            course=self.course,
+            title="Lecture Notes",
+            category="lecture_notes",
+            file=dummy_file,
+            original_filename="notes.pdf",
+            file_size=15,
+            uploaded_by=self.admin,
+            is_published=True,
+        )
+        edit_url = reverse("edit_course_resource", kwargs={"resource_id": resource.id})
+        delete_url = reverse("delete_course_resource", kwargs={"resource_id": resource.id})
+
+        self.client.force_login(self.admin)
+        res_edit = self.client.post(edit_url, {
+            "title": "Lecture Notes - Revised",
+            "category": "lecture_notes",
+            "description": "Updated notes.",
+            "is_published": "on",
+            "_has_published": "1",
+        })
+        self.assertEqual(res_edit.status_code, 302)
+        resource.refresh_from_db()
+        self.assertEqual(resource.title, "Lecture Notes - Revised")
+
+        # Delete
+        res_delete = self.client.post(delete_url)
+        self.assertEqual(res_delete.status_code, 302)
+        self.assertFalse(CourseResource.objects.filter(id=resource.id).exists())
+
+    def test_useful_link_lifecycle_and_validation(self):
+        self.client.force_login(self.admin)
+        # 1. Reject invalid URLs
+        res_invalid = self.client.post(self.add_link_url, {
+            "title": "Bad Link",
+            "category": "other",
+            "url": "javascript:alert(1)",
+        })
+        self.assertEqual(res_invalid.status_code, 200)
+        self.assertIn("url", res_invalid.context["form"].errors)
+
+        # 2. Add valid link
+        res_valid = self.client.post(self.add_link_url, {
+            "title": "Official Course WhatsApp Group",
+            "category": "whatsapp",
+            "url": "https://chat.whatsapp.com/samplegroup123",
+            "is_published": "on",
+            "_has_published": "1",
+        })
+        self.assertEqual(res_valid.status_code, 302)
+        link = CourseLink.objects.get(title="Official Course WhatsApp Group")
+        self.assertEqual(link.course, self.course)
+        self.assertEqual(link.category, "whatsapp")
+
+        # Notification created
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.student1,
+                content_type="course_link",
+                content_id=link.id,
+            ).exists()
+        )
+
+        # 3. Edit link
+        edit_link_url = reverse("edit_course_link", kwargs={"link_id": link.id})
+        res_edit = self.client.post(edit_link_url, {
+            "title": "Official Course WhatsApp Group - Section A",
+            "category": "whatsapp",
+            "url": "https://chat.whatsapp.com/samplegroup123",
+            "is_published": "on",
+            "_has_published": "1",
+        })
+        self.assertEqual(res_edit.status_code, 302)
+        link.refresh_from_db()
+        self.assertEqual(link.title, "Official Course WhatsApp Group - Section A")
+
+        # 4. Delete link
+        delete_link_url = reverse("delete_course_link", kwargs={"link_id": link.id})
+        res_del = self.client.post(delete_link_url)
+        self.assertEqual(res_del.status_code, 302)
+        self.assertFalse(CourseLink.objects.filter(id=link.id).exists())
+
+
+class InPortalNotificationTests(TestCase):
+    def setUp(self):
+        self.student = User.objects.create_user(
+            email="student_notif@pucit.edu.pk",
+            password="Password123!",
+            role=User.Role.STUDENT,
+            student_id="BITF24A521",
+            first_name="Saad",
+            last_name="Ahmed",
+            must_change_password=False,
+        )
+        self.course = Course.objects.create(
+            code="CS-205",
+            name="Operating Systems",
+            semester="Fall 2026",
+            is_active=True,
+        )
+        Enrollment.objects.create(course=self.course, student=self.student)
+        self.notif_list_url = reverse("notification_list")
+
+    def test_notification_deduplication_constraint(self):
+        notif1 = Notification(
+            recipient=self.student,
+            course=self.course,
+            title="Notice 1",
+            message="Content 1",
+            target_url="/announcements/1/",
+            content_type="announcement",
+            content_id=101,
+        )
+        notif2 = Notification(
+            recipient=self.student,
+            course=self.course,
+            title="Notice 1 duplicate",
+            message="Content 1 duplicate",
+            target_url="/announcements/1/",
+            content_type="announcement",
+            content_id=101,
+        )
+        Notification.objects.bulk_create([notif1, notif2], ignore_conflicts=True)
+        self.assertEqual(Notification.objects.filter(recipient=self.student, content_id=101).count(), 1)
+
+    def test_notification_list_and_context_processor(self):
+        Notification.objects.create(
+            recipient=self.student,
+            course=self.course,
+            title="Test Notice 1",
+            message="Message 1",
+            target_url="/announcements/1/",
+            content_type="announcement",
+            content_id=201,
+        )
+        Notification.objects.create(
+            recipient=self.student,
+            course=self.course,
+            title="Test Notice 2",
+            message="Message 2",
+            target_url="/announcements/2/",
+            content_type="announcement",
+            content_id=202,
+        )
+
+        self.client.force_login(self.student)
+        res = self.client.get(self.notif_list_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.context["unread_notifications_count"], 2)
+        self.assertContains(res, "Test Notice 1")
+        self.assertContains(res, "Test Notice 2")
+
+    def test_mark_notification_read_and_safe_redirect(self):
+        notif = Notification.objects.create(
+            recipient=self.student,
+            course=self.course,
+            title="Target Notice",
+            message="Read me",
+            target_url="/courses/1/resources/",
+            content_type="announcement",
+            content_id=301,
+        )
+        self.assertFalse(notif.is_read)
+
+        self.client.force_login(self.student)
+        read_url = reverse("mark_notification_read", kwargs={"notification_id": notif.id})
+        res = self.client.get(read_url)
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, "/courses/1/resources/")
+
+        notif.refresh_from_db()
+        self.assertTrue(notif.is_read)
+
+    def test_mark_notification_read_open_redirect_defense(self):
+        notif = Notification.objects.create(
+            recipient=self.student,
+            course=self.course,
+            title="Phishing Notice",
+            message="Malicious target",
+            target_url="https://evil-attacker.com/steal-creds",
+            content_type="announcement",
+            content_id=401,
+        )
+
+        self.client.force_login(self.student)
+        read_url = reverse("mark_notification_read", kwargs={"notification_id": notif.id})
+        res = self.client.get(read_url)
+        self.assertEqual(res.status_code, 302)
+        self.assertNotIn("evil-attacker.com", res.url)
+        self.assertEqual(res.url, self.notif_list_url)
+
+    def test_mark_all_notifications_read(self):
+        for i in range(3):
+            Notification.objects.create(
+                recipient=self.student,
+                course=self.course,
+                title=f"Bulk Notice {i}",
+                message=f"Message {i}",
+                target_url="/announcements/",
+                content_type="announcement",
+                content_id=500 + i,
+            )
+
+        self.assertEqual(Notification.objects.filter(recipient=self.student, is_read=False).count(), 3)
+        self.client.force_login(self.student)
+        mark_all_url = reverse("mark_all_notifications_read")
+        res = self.client.post(mark_all_url)
+        self.assertEqual(res.status_code, 302)
+        self.assertRedirects(res, self.notif_list_url)
+
+        self.assertEqual(Notification.objects.filter(recipient=self.student, is_read=False).count(), 0)

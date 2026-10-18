@@ -1062,6 +1062,53 @@ select option {
   color: var(--text-main);
 }
 
+/* Password Show/Hide Toggle Control */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 450px;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 2.75rem !important; /* Space for eye toggle button */
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-normal), background var(--transition-normal);
+  line-height: 1;
+}
+
+.password-toggle-btn:hover {
+  color: var(--accent);
+  background: var(--surface-glass-hover);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.password-toggle-btn .eye-icon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 /* --------------------------------------------------------------------------
    10. Buttons & Interactive Controls
    -------------------------------------------------------------------------- */
@@ -1281,4 +1328,59 @@ textarea:focus-visible,
   .dashboard-hero {
     padding: 1.25rem 1.5rem;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Notification Bell & In-Portal Notifications
+   -------------------------------------------------------------------------- */
+.notification-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--surface-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-base);
+  text-decoration: none;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.notification-nav-btn:hover {
+  background: var(--surface-glass-hover);
+  border-color: var(--border-glass-hover);
+  transform: translateY(-1px);
+}
+
+.notification-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--brand-pucit);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px rgba(185, 28, 28, 0.4);
+}
+
+.notification-card {
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  text-decoration: none;
+  display: block;
+  color: inherit;
+}
+
+.notification-card.unread {
+  border-left: 3px solid var(--brand-pucit);
+  background: var(--surface-glass-active);
 }

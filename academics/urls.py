@@ -4,6 +4,7 @@ from .views import (
     course_detail,
     mark_attendance,
     view_course_attendance,
+    edit_attendance_session,
     import_attendance,
     import_enrollments,
     my_attendance,
@@ -12,9 +13,21 @@ from .views import (
     edit_course,
     toggle_course_status,
     announcement_list,
+    announcement_detail,
     create_announcement,
     edit_announcement,
     delete_announcement,
+    course_resources,
+    upload_course_resource,
+    edit_course_resource,
+    delete_course_resource,
+    download_course_resource,
+    create_course_link,
+    edit_course_link,
+    delete_course_link,
+    notification_list,
+    mark_notification_read,
+    mark_all_notifications_read,
     task_list,
     create_task,
     edit_task,
@@ -59,6 +72,16 @@ urlpatterns = [
         name="view_attendance",
     ),
     path(
+        "courses/<int:course_id>/attendance/edit/",
+        edit_attendance_session,
+        name="edit_attendance_picker",
+    ),
+    path(
+        "courses/<int:course_id>/attendance/sessions/<int:session_id>/edit/",
+        edit_attendance_session,
+        name="edit_attendance_session",
+    ),
+    path(
         "attendance/import/",
         import_attendance,
         name="import_attendance",
@@ -79,6 +102,11 @@ urlpatterns = [
         name="create_announcement",
     ),
     path(
+        "announcements/<int:announcement_id>/",
+        announcement_detail,
+        name="announcement_detail",
+    ),
+    path(
         "announcements/<int:announcement_id>/edit/",
         edit_announcement,
         name="edit_announcement",
@@ -87,6 +115,69 @@ urlpatterns = [
         "announcements/<int:announcement_id>/delete/",
         delete_announcement,
         name="delete_announcement",
+    ),
+    path(
+        "courses/<int:course_id>/notices/",
+        announcement_list,
+        name="course_notices",
+    ),
+    # Study Materials (Resources)
+    path(
+        "courses/<int:course_id>/resources/",
+        course_resources,
+        name="course_resources",
+    ),
+    path(
+        "courses/<int:course_id>/resources/upload/",
+        upload_course_resource,
+        name="upload_course_resource",
+    ),
+    path(
+        "resources/<int:resource_id>/edit/",
+        edit_course_resource,
+        name="edit_course_resource",
+    ),
+    path(
+        "resources/<int:resource_id>/delete/",
+        delete_course_resource,
+        name="delete_course_resource",
+    ),
+    path(
+        "resources/<int:resource_id>/download/",
+        download_course_resource,
+        name="download_course_resource",
+    ),
+    # Useful Links
+    path(
+        "courses/<int:course_id>/links/create/",
+        create_course_link,
+        name="create_course_link",
+    ),
+    path(
+        "links/<int:link_id>/edit/",
+        edit_course_link,
+        name="edit_course_link",
+    ),
+    path(
+        "links/<int:link_id>/delete/",
+        delete_course_link,
+        name="delete_course_link",
+    ),
+    # In-Portal Notifications
+    path(
+        "notifications/",
+        notification_list,
+        name="notification_list",
+    ),
+    path(
+        "notifications/<int:notification_id>/read/",
+        mark_notification_read,
+        name="mark_notification_read",
+    ),
+    path(
+        "notifications/mark-all-read/",
+        mark_all_notifications_read,
+        name="mark_all_notifications_read",
     ),
     # Tasks & Submissions
     path("tasks/", task_list, name="task_list"),
@@ -114,4 +205,3 @@ urlpatterns = [
     path("polls/<int:poll_id>/", poll_detail, name="poll_detail"),
     path("polls/<int:poll_id>/close/", close_poll, name="close_poll"),
 ]
-

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'dashboard' %}">Courses</a>
+    / <a href="{% url 'course_detail' course.id %}">{{ course.code }}</a>
+    / <a href="{% url 'course_resources' course.id %}">Study Materials</a>
+    / <span class="current">{{ title }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">{{ title }}</h1>
+        <p class="page-subtitle">
+            {% if is_create %}
+            Upload notes, lecture slides, books, or study materials for students enrolled in {{ course.name }}.
+            {% else %}
+            Update study material information or replace the uploaded file.
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'course_resources' course.id %}" class="btn btn-secondary">
+            Cancel
+        </a>
+    </div>
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-error">
+    {{ form.non_field_errors }}
+</div>
+{% endif %}
+
+<div class="card" style="max-width: 680px;">
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.title.id_for_label }}">
+                {{ form.title.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.title }}
+            {% if form.title.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.title.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.category.id_for_label }}">
+                {{ form.category.label }} <span style="color: var(--danger);">*</span>
+            </label>
+            {{ form.category }}
+            {% if form.category.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.category.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.description.id_for_label }}">
+                {{ form.description.label }}
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.description.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.file.id_for_label }}">
+                {{ form.file.label }} {% if is_create %}<span style="color: var(--danger);">*</span>{% endif %}
+            </label>
+            {% if not is_create and resource.original_filename %}
+            <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; background: var(--surface-glass); padding: 0.5rem 0.75rem; border-radius: 4px; border: 1px solid var(--border-glass);">
+                Current file: <strong>{{ resource.original_filename }}</strong> ({{ resource.file_size|filesizeformat }})
+            </div>
+            {% endif %}
+            {{ form.file }}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.35rem;">
+                Supported file types: PDF, Word (.docx), PowerPoint (.pptx), Excel, Text, Images, and Archives (.zip, .rar). Maximum file size: 25 MB.
+            </p>
+            {% if form.file.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.file.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <input type="hidden" name="_has_published" value="1">
+        <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: var(--surface-glass); border: 1px solid var(--border-glass); border-radius: 6px;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0;">
+                {{ form.is_published }}
+                <span style="font-weight: 500;">Publish immediately (Notifies enrolled students)</span>
+            </label>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1.25rem;">
+            <button type="submit" class="btn btn-primary">
+                {% if is_create %}Upload Study Material{% else %}Save Changes{% endif %}
+            </button>
+            <a href="{% url 'course_resources' course.id %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

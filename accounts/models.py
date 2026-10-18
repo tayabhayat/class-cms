@@ -57,6 +57,12 @@ class User(AbstractUser):
         null=True,
         blank=True,
     )
+    last_activity = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Timestamp of the user's most recent authenticated activity on the CMS.",
+    )
 
 
 class PasswordResetCode(models.Model):
@@ -105,3 +111,29 @@ class PasswordResetCode(models.Model):
         expected_hash = self.hash_code(raw_code, self.session_token)
         return secrets.compare_digest(self.code_hash, expected_hash)
 
+
+class PasswordResetAudit(models.Model):
+    """
+    Audits administrative password resets. Records who performed the reset,
+    which student was reset, and the timestamp.
+    STRICT SECURITY CONSTRAINT: Absolutely NO passwords, hashes, or verification
+    secrets are stored in this model.
+    """
+    reset_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="performed_resets",
+    )
+    target_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="received_resets",
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"Password reset for {self.target_user} by {self.reset_by} at {self.timestamp}"

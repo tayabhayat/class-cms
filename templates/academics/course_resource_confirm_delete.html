@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Study Material | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'dashboard' %}">Courses</a>
+    / <a href="{% url 'course_detail' course.id %}">{{ course.code }}</a>
+    / <a href="{% url 'course_resources' course.id %}">Study Materials</a>
+    / <span class="current">Delete</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">Confirm Material Deletion</h1>
+        <p class="page-subtitle">Are you sure you want to permanently delete this study material?</p>
+    </div>
+</div>
+
+<div class="card" style="max-width: 580px;">
+    <div style="margin-bottom: 1.5rem;">
+        <h2 style="font-size: 1.2rem; font-weight: 600; color: var(--danger); margin-bottom: 0.5rem;">
+            {{ resource.title }}
+        </h2>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+            Category: <strong>{{ resource.get_category_display }}</strong> &bull;
+            File: <strong>{{ resource.original_filename|default:"Uploaded File" }}</strong>
+        </p>
+        <p style="font-size: 0.85rem; color: var(--danger); line-height: 1.5;">
+            Warning: This action will permanently remove this resource and its uploaded file from the server. This cannot be undone.
+        </p>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div style="display: flex; gap: 0.75rem;">
+            <button type="submit" class="btn btn-danger">
+                Yes, Delete Material
+            </button>
+            <a href="{% url 'course_resources' course.id %}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

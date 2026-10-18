@@ -1,14 +1,19 @@
 import secrets
+import string
 from datetime import timedelta
 
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.views import LoginView, PasswordChangeView
-from django.core.mail import send_mail
-from django.shortcuts import redirect, render
+from django.core.cache import cache
+from django.db import transaction
+from django.db.models import Max, Q
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 
 from .forms import (
     ClassLoginForm,
@@ -16,7 +21,7 @@ from .forms import (
     ResetPasswordForm,
     VerifyResetCodeForm,
 )
-from .models import PasswordResetCode
+from .models import PasswordResetAudit, PasswordResetCode
 
 User = get_user_model()
 
@@ -31,6 +36,28 @@ def mask_email(email: str) -> str:
     else:
         masked_local = local[0] + ("*" * (len(local) - 2)) + local[-1]
     return f"{masked_local}@{domain}"
+
+
+def is_admin(user):
+    """Permission helper verifying if an authenticated user is an Admin/CR."""
+    return user.is_authenticated and getattr(user, "role", None) == "admin"
+
+
+def generate_temporary_password(length=14):
+    """
+    Generates a cryptographically secure, unpredictable temporary password
+    guaranteed to contain uppercase, lowercase, digits, and safe special characters.
+    """
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    while True:
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
+        if (
+            any(c.islower() for c in password)
+            and any(c.isupper() for c in password)
+            and any(c.isdigit() for c in password)
+            and any(c in "!@#$%^&*" for c in password)
+        ):
+            return password
 
 
 class ClassLoginView(LoginView):
@@ -56,9 +83,6 @@ class RequiredPasswordChangeView(PasswordChangeView):
         return response
 
 
-from django.core.cache import cache
-
-
 def get_client_ip(request):
     """Safely extracts client IP address from request META."""
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
@@ -68,235 +92,234 @@ def get_client_ip(request):
 
 
 def forgot_password(request):
+    """
+    Informs students that self-service email recovery has been replaced with
+    administrator-assisted password resets. Instructs them to contact their CR/Admin.
+    """
     if request.user.is_authenticated:
         return redirect("dashboard")
 
-    if request.method == "POST":
-        form = ForgotPasswordRequestForm(request.POST)
-        if form.is_valid():
-            # IP-level rate limiting: max 5 requests per minute per IP
-            client_ip = get_client_ip(request)
-            ip_cache_key = f"pwd_reset_ip_{client_ip}"
-            ip_count = cache.get(ip_cache_key, 0)
-            if ip_count >= 5:
-                messages.error(
-                    request,
-                    "Too many password reset requests from your network. Please wait a minute before trying again.",
-                )
-                return render(request, "registration/forgot_password.html", {"form": form})
-            cache.set(ip_cache_key, ip_count + 1, timeout=60)
-
-            ident = form.cleaned_data["identifier"]
-            user = None
-
-            if "@" in ident:
-                user = User.objects.filter(email__iexact=ident, is_active=True).first()
-            else:
-                user = User.objects.filter(student_id__iexact=ident, is_active=True).first()
-
-            # Generic success message to prevent user enumeration
-            generic_message = (
-                "If an account matches that roll number or email, a 6-digit verification "
-                "code has been sent to the registered university email address."
-            )
-
-            if user:
-                # Rate limiting check: check if code created within last 60 seconds
-                is_recent = PasswordResetCode.objects.filter(
-                    user=user,
-                    created_at__gte=timezone.now() - timedelta(seconds=60),
-                    is_consumed=False,
-                ).exists()
-
-                if is_recent:
-                    if "reset_session_token" not in request.session:
-                        request.session["reset_session_token"] = secrets.token_urlsafe(32)
-                    messages.info(request, generic_message)
-                    return redirect("verify_reset_code")
-
-                # Invalidate any existing active codes for this user
-                PasswordResetCode.objects.filter(user=user, is_consumed=False).update(is_consumed=True)
-
-                raw_code = f"{secrets.randbelow(900000) + 100000}"
-                session_token = secrets.token_urlsafe(32)
-                code_hash = PasswordResetCode.hash_code(raw_code, session_token)
-
-                reset_code = PasswordResetCode(
-                    user=user,
-                    code_hash=code_hash,
-                    session_token=session_token,
-                    expires_at=timezone.now() + timedelta(minutes=PasswordResetCode.EXPIRY_MINUTES),
-                )
-
-                subject = "PUCIT Class CMS — Password Reset Verification Code"
-                body = (
-                    f"Hello {user.get_full_name() or user.email},\n\n"
-                    f"You requested to reset your password for the PUCIT Class Management System.\n\n"
-                    f"Your 6-digit verification code is:\n\n"
-                    f"    {raw_code}\n\n"
-                    f"This code will expire in {PasswordResetCode.EXPIRY_MINUTES} minutes.\n\n"
-                    f"If you did not request a password reset, please ignore this email or notify your CR/Admin.\n\n"
-                    f"Regards,\nPUCIT Class CMS"
-                )
-
-                try:
-                    send_mail(
-                        subject=subject,
-                        message=body,
-                        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@pucit.edu.pk"),
-                        recipient_list=[user.email],
-                        fail_silently=False,
-                    )
-                    reset_code.save()
-                    request.session["reset_session_token"] = session_token
-                    request.session["reset_masked_email"] = mask_email(user.email)
-                except Exception:
-                    # Do not create usable reset code on email delivery failure
-                    messages.error(
-                        request,
-                        "Unable to deliver the verification code email at this time. "
-                        "Please check the email service configuration or try again later.",
-                    )
-                    return render(request, "registration/forgot_password.html", {"form": form})
-            else:
-                # Generate a dummy token to prevent timing or enumeration differences
-                dummy_token = secrets.token_urlsafe(32)
-                request.session["reset_session_token"] = dummy_token
-                request.session.pop("reset_masked_email", None)
-
-            messages.info(request, generic_message)
-            return redirect("verify_reset_code")
-    else:
-        form = ForgotPasswordRequestForm()
-
-    return render(request, "registration/forgot_password.html", {"form": form})
+    return render(request, "registration/forgot_password.html")
 
 
 def verify_reset_code(request):
+    """Legacy endpoint redirecting to the helpful contact-admin guidance page."""
     if request.user.is_authenticated:
         return redirect("dashboard")
 
-    session_token = request.session.get("reset_session_token")
-    if not session_token:
-        messages.warning(request, "Please request a password reset code first.")
-        return redirect("forgot_password")
-
-    masked_email = request.session.get("reset_masked_email", "")
-
-    if request.method == "POST":
-        form = VerifyResetCodeForm(request.POST)
-        if form.is_valid():
-            raw_code = form.cleaned_data["code"]
-            reset_code = PasswordResetCode.objects.filter(
-                session_token=session_token,
-                is_consumed=False,
-            ).first()
-
-            if not reset_code:
-                form.add_error(
-                    None,
-                    "Invalid or expired verification session. Please request a new code.",
-                )
-            elif reset_code.is_expired():
-                form.add_error(
-                    "code",
-                    "This verification code has expired (10-minute limit). Please request a new code.",
-                )
-            elif reset_code.attempts_count >= reset_code.MAX_ATTEMPTS:
-                reset_code.is_consumed = True
-                reset_code.save(update_fields=["is_consumed"])
-                form.add_error(
-                    "code",
-                    "Maximum verification attempts exceeded (5 attempts). Please request a new code.",
-                )
-            else:
-                if reset_code.check_code(raw_code):
-                    reset_code.is_verified = True
-                    reset_code.save(update_fields=["is_verified"])
-                    request.session["reset_verified_token"] = session_token
-                    messages.success(request, "Verification code confirmed. Please set your new password.")
-                    return redirect("reset_password")
-                else:
-                    reset_code.attempts_count += 1
-                    if reset_code.attempts_count >= reset_code.MAX_ATTEMPTS:
-                        reset_code.is_consumed = True
-                        reset_code.save(update_fields=["attempts_count", "is_consumed"])
-                        form.add_error(
-                            "code",
-                            "Maximum verification attempts exceeded (5 attempts). Please request a new code.",
-                        )
-                    else:
-                        reset_code.save(update_fields=["attempts_count"])
-                        remaining = reset_code.MAX_ATTEMPTS - reset_code.attempts_count
-                        form.add_error(
-                            "code",
-                            f"Incorrect verification code. You have {remaining} attempt(s) remaining.",
-                        )
-    else:
-        form = VerifyResetCodeForm()
-
-    return render(
+    messages.info(
         request,
-        "registration/verify_reset_code.html",
-        {"form": form, "masked_email": masked_email},
+        "Self-service email recovery is discontinued. Please contact your Class Representative or Course Administrator to reset your password.",
     )
+    return redirect("forgot_password")
 
 
 def reset_password(request):
+    """Legacy endpoint redirecting to the helpful contact-admin guidance page."""
     if request.user.is_authenticated:
         return redirect("dashboard")
 
-    session_token = request.session.get("reset_verified_token")
-    if not session_token:
-        messages.warning(request, "Please verify your code before resetting your password.")
-        return redirect("forgot_password")
+    messages.info(
+        request,
+        "Self-service email recovery is discontinued. Please contact your Class Representative or Course Administrator to reset your password.",
+    )
+    return redirect("forgot_password")
 
-    reset_code = PasswordResetCode.objects.filter(
-        session_token=session_token,
-        is_verified=True,
-        is_consumed=False,
-    ).first()
 
-    if not reset_code or reset_code.is_expired():
-        messages.error(
-            request,
-            "Your password reset authorization has expired or is invalid. Please request a new code.",
+@login_required
+@user_passes_test(is_admin)
+def admin_student_list(request):
+    """
+    Displays the list of enrolled students for authorized Admins/CRs.
+    Allows searching by roll number, name, or email, and provides a direct
+    action to initiate an administrative password reset.
+    """
+    query = request.GET.get("q", "").strip()
+    students_qs = User.objects.filter(role=User.Role.STUDENT)
+
+    if query:
+        students_qs = students_qs.filter(
+            Q(student_id__icontains=query)
+            | Q(first_name__icontains=query)
+            | Q(last_name__icontains=query)
+            | Q(email__icontains=query)
         )
-        return redirect("forgot_password")
 
-    user = reset_code.user
+    students = list(students_qs.order_by("student_id", "first_name", "email"))
 
-    if request.method == "POST":
-        form = ResetPasswordForm(user=user, data=request.POST)
-        if form.is_valid():
-            form.save()
+    # Annotate latest reset timestamp from audit records without N+1 queries
+    latest_resets = dict(
+        PasswordResetAudit.objects.filter(target_user__in=students)
+        .values("target_user_id")
+        .annotate(last_reset=Max("timestamp"))
+        .values_list("target_user_id", "last_reset")
+    )
 
-            # Mark verification code consumed
-            reset_code.is_consumed = True
-            reset_code.save(update_fields=["is_consumed"])
-
-            # User just set a new private password, so they don't need first-login change again
-            user.must_change_password = False
-            user.save(update_fields=["must_change_password"])
-
-            # Clear reset session tokens
-            request.session.pop("reset_session_token", None)
-            request.session.pop("reset_verified_token", None)
-            request.session.pop("reset_masked_email", None)
-
-            messages.success(
-                request,
-                "Your password has been reset successfully. Please log in with your new password.",
-            )
-            return redirect("login")
-    else:
-        form = ResetPasswordForm(user=user)
+    for student in students:
+        student.last_reset_time = latest_resets.get(student.id)
 
     return render(
         request,
-        "registration/reset_password.html",
+        "accounts/admin_student_list.html",
         {
-            "form": form,
-            "user_display": user.get_full_name() or user.student_id or user.email,
+            "students": students,
+            "query": query,
+            "total_students": len(students),
         },
     )
+
+
+@login_required
+@user_passes_test(is_admin)
+def admin_reset_student_password(request, student_id):
+    """
+    Administrative password reset view.
+    GET: Displays explicit confirmation with student details.
+    POST: Generates a cryptographically secure temporary password, hashes it using
+          Django's password hasher, sets must_change_password=True, records an audit log
+          (without storing any password or secret), and stores the temporary password in
+          the session for a one-time view.
+    """
+    student = get_object_or_404(User, id=student_id)
+
+    # Reject non-student accounts (Admins cannot reset other admins via this workflow)
+    if student.role != User.Role.STUDENT:
+        messages.error(
+            request,
+            "Unauthorized operation. Only student accounts can be reset through this interface.",
+        )
+        return redirect("admin_student_list")
+
+    if request.method == "POST":
+        # Generate cryptographically secure temporary password
+        temp_password = generate_temporary_password()
+
+        # Execute database operations atomically to prevent partial resets
+        with transaction.atomic():
+            # Set hashed password and force first-login change
+            student.set_password(temp_password)
+            student.must_change_password = True
+            student.save(update_fields=["password", "must_change_password"])
+
+            # Audit the action without storing any password or secret
+            PasswordResetAudit.objects.create(
+                reset_by=request.user,
+                target_user=student,
+                ip_address=get_client_ip(request),
+            )
+
+            # Invalidate any legacy unconsumed reset codes for safety
+            PasswordResetCode.objects.filter(user=student, is_consumed=False).update(is_consumed=True)
+
+        # Store temporary password in session for one-time display only after transaction commits
+        request.session["admin_temp_password_display"] = {
+            "student_id": student.student_id or "—",
+            "student_name": student.get_full_name() or student.email,
+            "student_email": student.email,
+            "temp_password": temp_password,
+        }
+
+        return redirect("admin_reset_student_password_done")
+
+    # GET: Render confirmation screen
+    return render(
+        request,
+        "accounts/admin_reset_password_confirm.html",
+        {
+            "student": student,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+@never_cache
+def admin_reset_student_password_done(request):
+    """
+    Displays the temporary password to the authorized administrator ONLY ONCE.
+    Popped from the session immediately upon retrieval so it cannot be viewed again.
+    Applies strict Cache-Control: no-store and Pragma: no-cache headers.
+    """
+    reset_data = request.session.pop("admin_temp_password_display", None)
+    if not reset_data:
+        messages.info(
+            request,
+            "The temporary password has already been cleared or expired. Temporary passwords are only displayed once.",
+        )
+        return redirect("admin_student_list")
+
+    response = render(
+        request,
+        "accounts/admin_reset_password_done.html",
+        {
+            "reset_data": reset_data,
+        },
+    )
+    # Strictly prevent client, intermediary, or proxy caching of temporary credentials
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate, private"
+    response["Pragma"] = "no-cache"
+    response["Expires"] = "0"
+    return response
+
+
+ACTIVE_NOW_THRESHOLD_MINUTES = 5
+
+
+@login_required
+@user_passes_test(is_admin)
+def active_users_view(request):
+    """
+    Renders the active users dashboard for Admin/CR users.
+    Displays authenticated users with their name, role, student ID, and last activity time.
+    Users with authenticated activity within the last 5 minutes are classified as 'Active now'.
+    """
+    now = timezone.now()
+    active_threshold = now - timedelta(minutes=ACTIVE_NOW_THRESHOLD_MINUTES)
+
+    role_filter = request.GET.get("role", "").strip().lower()
+    search_query = request.GET.get("q", "").strip()
+
+    users_qs = User.objects.all().order_by("-last_activity", "first_name", "email")
+
+    if role_filter in {User.Role.ADMIN, User.Role.STUDENT}:
+        users_qs = users_qs.filter(role=role_filter)
+
+    if search_query:
+        users_qs = users_qs.filter(
+            Q(first_name__icontains=search_query)
+            | Q(last_name__icontains=search_query)
+            | Q(email__icontains=search_query)
+            | Q(student_id__icontains=search_query)
+        )
+
+    total_users_count = User.objects.count()
+    active_now_count = User.objects.filter(last_activity__gte=active_threshold).count()
+    active_today_count = User.objects.filter(last_activity__date=now.date()).count()
+
+    users_list = []
+    for u in users_qs:
+        is_active_now = (
+            u.last_activity is not None and u.last_activity >= active_threshold
+        )
+        users_list.append({
+            "user": u,
+            "student_id": u.student_id or "—",
+            "name": u.get_full_name() or u.email,
+            "email": u.email,
+            "role": u.role,
+            "role_display": u.get_role_display(),
+            "last_activity": u.last_activity,
+            "is_active_now": is_active_now,
+        })
+
+    context = {
+        "users": users_list,
+        "total_users_count": total_users_count,
+        "active_now_count": active_now_count,
+        "active_today_count": active_today_count,
+        "active_threshold_minutes": ACTIVE_NOW_THRESHOLD_MINUTES,
+        "search_query": search_query,
+        "role_filter": role_filter,
+    }
+
+    return render(request, "accounts/active_users.html", context)

@@ -71,7 +71,38 @@
             {% endif %}
         </div>
 
-        <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #475569;">
+        <div style="margin-bottom: 1.25rem;">
+            <label for="{{ form.course.id_for_label }}">
+                {{ form.course.label }}
+            </label>
+            {{ form.course }}
+            {% if form.course.help_text %}
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem;">
+                {{ form.course.help_text }}
+            </p>
+            {% endif %}
+            {% if form.course.errors %}
+            <div class="errors" style="margin-top: 0.25rem; margin-bottom: 0;">
+                {{ form.course.errors }}
+            </div>
+            {% endif %}
+        </div>
+
+        <input type="hidden" name="_has_pinned" value="1">
+        <input type="hidden" name="_has_published" value="1">
+
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; padding: 0.75rem 1rem; background: var(--surface-glass); border: 1px solid var(--border-glass); border-radius: 6px;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0;">
+                {{ form.is_pinned }}
+                <span style="font-weight: 500;">📌 Pin to top of Notice Board</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: 0;">
+                {{ form.is_published }}
+                <span style="font-weight: 500;">Publish immediately</span>
+            </label>
+        </div>
+
+        <div style="background: var(--surface-glass); border: 1px solid var(--border-glass); border-radius: 6px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-muted);">
             {% if is_create %}
                 <span>Author Attribution: Published as <strong>{{ request.user.get_full_name|default:request.user.email }}</strong>.</span>
             {% else %}

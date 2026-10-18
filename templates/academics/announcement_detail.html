@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ announcement.title }} | PUCIT Class CMS{% endblock %}
+{% block nav_announcements %}active{% endblock %}
+{% block nav_student_announcements %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'announcement_list' %}">Notice Board</a>
+    / <span class="current">{{ announcement.title|truncatechars:30 }}</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap;">
+            {% if announcement.is_pinned %}
+                <span class="badge badge-warning">📌 Pinned</span>
+            {% endif %}
+            {% if not announcement.is_published %}
+                <span class="badge badge-danger">Draft (Unpublished)</span>
+            {% endif %}
+            {% if announcement.course %}
+                <span class="badge badge-student">{{ announcement.course.code }} — {{ announcement.course.name }}</span>
+            {% else %}
+                <span class="badge badge-secondary">General Class-Wide Notice</span>
+            {% endif %}
+        </div>
+        <h1 class="page-title">{{ announcement.title }}</h1>
+        <p class="page-subtitle">
+            {% if announcement.created_by %}
+                Posted by <strong>{{ announcement.created_by.get_full_name|default:announcement.created_by.email }}</strong> &bull;
+            {% endif %}
+            {{ announcement.created_at|date:"d M Y, H:i" }}
+            {% if announcement.updated_at|date:"U" != announcement.created_at|date:"U" %}
+                <span style="font-style: italic; color: var(--text-muted); margin-left: 0.5rem;">
+                    (Updated {{ announcement.updated_at|date:"d M Y, H:i" }})
+                </span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if request.user.role == "admin" %}
+        <a href="{% url 'edit_announcement' announcement.id %}" class="btn btn-secondary">
+            Edit Notice
+        </a>
+        <a href="{% url 'delete_announcement' announcement.id %}" class="btn btn-secondary" style="color: var(--danger);">
+            Delete Notice
+        </a>
+        {% endif %}
+        <a href="{% url 'announcement_list' %}{% if announcement.course %}?course={{ announcement.course.id }}{% endif %}" class="btn btn-secondary">
+            Back to Notice Board
+        </a>
+    </div>
+</div>
+
+<div class="card" style="font-size: 1rem; line-height: 1.8; color: var(--text-base); white-space: pre-line;">
+{{ announcement.message }}
+</div>
+{% endblock %}

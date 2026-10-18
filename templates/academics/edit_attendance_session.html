@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Attendance: {{ course.code }} | PUCIT Class CMS{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'manage_courses' %}">Courses</a>
+    / <a href="{% url 'course_detail' course.id %}">{{ course.code }}</a>
+    / <a href="{% url 'view_attendance' course.id %}">Attendance Register</a>
+    / <span class="current">Edit Attendance</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <span class="course-code">{{ course.code }}</span>
+        <h1 class="page-title">Edit Recorded Attendance: {{ course.name }}</h1>
+        <p class="page-subtitle">
+            Update student attendance statuses for previously recorded sessions directly in the CMS.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'view_attendance' course.id %}" class="btn btn-secondary">
+            View Register
+        </a>
+        <a href="{% url 'mark_attendance' course.id %}" class="btn btn-secondary">
+            Mark Manual Attendance
+        </a>
+        <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary">
+            Course Details
+        </a>
+    </div>
+</div>
+
+<!-- Session Selection Card -->
+<div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem 1.5rem;">
+    <h2 class="card-title" style="margin-bottom: 0.75rem; border: none; padding: 0;">
+        Select Attendance Session
+    </h2>
+    {% if not sessions %}
+        <div class="alert alert-info" style="margin: 0;">
+            <span>No attendance sessions have been recorded for {{ course.code }} yet.</span>
+            <div style="margin-top: 0.75rem;">
+                <a href="{% url 'mark_attendance' course.id %}" class="btn btn-primary btn-sm">
+                    Mark New Attendance
+                </a>
+                <a href="{% url 'import_attendance' %}" class="btn btn-secondary btn-sm" style="margin-left: 0.5rem;">
+                    Import Attendance (.xlsx)
+                </a>
+            </div>
+        </div>
+    {% else %}
+        <form method="get" action="{% url 'edit_attendance_picker' course.id %}" style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap;">
+            <div style="flex-grow: 1; max-width: 420px;">
+                <label for="session_select" style="display: block; font-weight: 600; margin-bottom: 0.35rem; font-size: 0.88rem; color: var(--text-main);">
+                    Session Date:
+                </label>
+                <select id="session_select" name="session_id" onchange="this.form.submit()" style="width: 100%;">
+                    {% for s in sessions %}
+                        <option value="{{ s.id }}" {% if selected_session and selected_session.id == s.id %}selected{% endif %}>
+                            {{ s.date|date:"l, d F Y" }} ({{ s.date|date:"Y-m-d" }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-secondary" style="height: 38px;">
+                Load Session
+            </button>
+        </form>
+    {% endif %}
+</div>
+
+{% if selected_session %}
+<!-- Session Overview Metrics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ selected_session.date|date:"d M Y" }}</div>
+        <div class="stat-label">Session Date</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">{{ present_count }}</div>
+        <div class="stat-label">Present</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--danger);">{{ absent_count }}</div>
+        <div class="stat-label">Absent</div>
+    </div>
+    {% if leave_count > 0 %}
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--warning);">{{ leave_count }}</div>
+        <div class="stat-label">Leave</div>
+    </div>
+    {% endif %}
+    <div class="stat-card">
+        <div class="stat-value">{{ students|length }}</div>
+        <div class="stat-label">Enrolled Students</div>
+    </div>
+</div>
+
+<!-- Attendance Editing Form Card -->
+<div class="card" style="padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+            <h2 class="card-title" style="border: none; margin: 0; padding: 0;">
+                Editing Session: {{ selected_session.date|date:"l, d F Y" }}
+            </h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+                Recorded by {{ selected_session.created_by.email }} on {{ selected_session.created_at|date:"M d, Y" }}.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setAllStatuses('present')">
+                All Present
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setAllStatuses('absent')">
+                All Absent
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="invertStatuses()">
+                Invert Present/Absent
+            </button>
+        </div>
+    </div>
+
+    {% if not students %}
+        <div style="padding: 2rem; text-align: center; color: var(--text-muted);">
+            <p>No students enrolled in this course.</p>
+        </div>
+    {% else %}
+        <form method="post" action="{% url 'edit_attendance_session' course.id selected_session.id %}">
+            {% csrf_token %}
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 45px; text-align: center;">#</th>
+                            <th style="min-width: 130px;">Roll Number</th>
+                            <th style="min-width: 180px;">Student Name</th>
+                            <th style="min-width: 110px; text-align: center;">Saved Status</th>
+                            <th style="min-width: 160px;">New Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students %}
+                        <tr>
+                            <td style="text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                                {{ forloop.counter }}
+                            </td>
+                            <td>
+                                <strong>{{ student.student_id|default:"—" }}</strong>
+                            </td>
+                            <td>
+                                <div style="font-weight: 600; color: var(--text-main);">
+                                    {{ student.get_full_name|default:student.email }}
+                                </div>
+                                <div style="font-size: 0.78rem; color: var(--text-muted);">
+                                    {{ student.email }}
+                                </div>
+                            </td>
+                            <td style="text-align: center;">
+                                {% if student.current_status == "present" %}
+                                    <span class="badge badge-present">Present</span>
+                                {% elif student.current_status == "absent" %}
+                                    <span class="badge badge-absent">Absent</span>
+                                {% elif student.current_status == "leave" %}
+                                    <span class="badge badge-leave">Leave</span>
+                                {% else %}
+                                    <span class="badge badge-unrecorded">Not Marked</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <select name="status_{{ student.id }}" class="attendance-select" style="min-width: 130px;" required>
+                                    <option value="present" {% if student.current_status == "present" %}selected{% endif %}>
+                                        Present
+                                    </option>
+                                    <option value="absent" {% if student.current_status == "absent" %}selected{% endif %}>
+                                        Absent
+                                    </option>
+                                    {% if student.current_status == "leave" %}
+                                        <option value="leave" selected>
+                                            Leave
+                                        </option>
+                                    {% endif %}
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-primary">
+                    Save Attendance Changes
+                </button>
+                <a href="{% url 'view_attendance' course.id %}" class="btn btn-secondary">
+                    Cancel & View Register
+                </a>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+<script>
+function setAllStatuses(status) {
+    var selects = document.querySelectorAll('.attendance-select');
+    selects.forEach(function(sel) {
+        sel.value = status;
+    });
+}
+
+function invertStatuses() {
+    var selects = document.querySelectorAll('.attendance-select');
+    selects.forEach(function(sel) {
+        if (sel.value === 'present') {
+            sel.value = 'absent';
+        } else if (sel.value === 'absent') {
+            sel.value = 'present';
+        }
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

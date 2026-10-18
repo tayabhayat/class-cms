@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, PasswordResetCode
+from .models import User, PasswordResetCode, PasswordResetAudit
 
 
 
@@ -41,9 +41,10 @@ class CustomUserAdmin(UserAdmin):
             )
         }),
         ("Important dates", {
-            "fields": ("last_login", "date_joined")
+            "fields": ("last_login", "last_activity", "date_joined")
         }),
     )
+    readonly_fields = ("last_activity",)
 
     add_fieldsets = (
         (None, {
@@ -89,3 +90,10 @@ class PasswordResetCodeAdmin(admin.ModelAdmin):
     search_fields = ("user__email", "user__student_id")
     readonly_fields = ("code_hash", "session_token", "created_at", "expires_at")
 
+
+@admin.register(PasswordResetAudit)
+class PasswordResetAuditAdmin(admin.ModelAdmin):
+    list_display = ("target_user", "reset_by", "timestamp", "ip_address")
+    list_filter = ("timestamp",)
+    search_fields = ("target_user__email", "target_user__student_id", "reset_by__email")
+    readonly_fields = ("target_user", "reset_by", "timestamp", "ip_address")

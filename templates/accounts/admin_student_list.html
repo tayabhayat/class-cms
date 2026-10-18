@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Student Accounts & Password Resets | PUCIT Class CMS{% endblock %}
+{% block nav_admin_students %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Student Password Resets</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Student Password Management</h1>
+        <p class="page-subtitle">
+            Search enrolled student accounts and assist students with secure, cryptographically generated temporary password resets.
+        </p>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+    <form method="get" action="{% url 'admin_student_list' %}" style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px;">
+            <input
+                type="text"
+                name="q"
+                value="{{ query }}"
+                placeholder="Search by Roll Number (e.g. BITF24A001), student name, or email..."
+                class="form-control"
+                style="width: 100%; max-width: 100%;"
+                autofocus
+            >
+        </div>
+        <button type="submit" class="btn btn-primary">
+            🔍 Search
+        </button>
+        {% if query %}
+        <a href="{% url 'admin_student_list' %}" class="btn btn-secondary">
+            Clear
+        </a>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Students Roster Card -->
+<div class="card" style="padding: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+            <h2 class="card-title" style="border: none; margin: 0; padding: 0;">
+                Enrolled Student Accounts
+            </h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+                Showing {{ total_students }} student{{ total_students|pluralize }}
+                {% if query %}matching "<strong>{{ query }}</strong>"{% endif %}
+            </p>
+        </div>
+    </div>
+
+    {% if students %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 45px; text-align: center;">#</th>
+                    <th style="min-width: 140px;">Roll Number</th>
+                    <th style="min-width: 180px;">Student Name</th>
+                    <th style="min-width: 200px;">University Email</th>
+                    <th style="min-width: 140px; text-align: center;">Account State</th>
+                    <th style="min-width: 160px; text-align: center;">Last Assisted Reset</th>
+                    <th style="width: 150px; text-align: center;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td style="text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+                        {{ forloop.counter }}
+                    </td>
+                    <td>
+                        <strong>{{ student.student_id|default:"—" }}</strong>
+                    </td>
+                    <td>
+                        <div style="font-weight: 600; color: var(--text-main);">
+                            {{ student.get_full_name|default:student.email }}
+                        </div>
+                    </td>
+                    <td>
+                        <span style="font-size: 0.88rem; color: var(--text-muted);">
+                            {{ student.email }}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        {% if student.must_change_password %}
+                            <span class="badge badge-warning" title="Student must change password upon next sign in">
+                                Must Change Password
+                            </span>
+                        {% else %}
+                            <span class="badge badge-success" title="Active private password set">
+                                Active Password
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center; font-size: 0.82rem; color: var(--text-muted);">
+                        {% if student.last_reset_time %}
+                            {{ student.last_reset_time|date:"d M Y, H:i" }}
+                        {% else %}
+                            <span style="color: var(--text-subtle);">None recorded</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center;">
+                        <a href="{% url 'admin_reset_student_password' student.id %}" class="btn btn-secondary btn-sm" style="font-size: 0.8rem; padding: 0.3rem 0.65rem;">
+                            Reset Password
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;" aria-hidden="true">🔍</div>
+        <p style="margin: 0; font-size: 0.95rem;">
+            No student accounts found{% if query %} matching "{{ query }}"{% endif %}.
+        </p>
+        {% if query %}
+        <div style="margin-top: 1rem;">
+            <a href="{% url 'admin_student_list' %}" class="btn btn-secondary btn-sm">
+                Clear Search Filter
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

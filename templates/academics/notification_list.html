@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications | PUCIT Class CMS{% endblock %}
+{% block nav_notifications %}active{% endblock %}
+{% block nav_student_notifications %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <span class="current">Notifications</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Notification Center</h1>
+        <p class="page-subtitle">
+            Stay updated on newly published notices, lecture notes, study materials, and academic updates.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        {% if unread_count > 0 %}
+        <form method="post" action="{% url 'mark_all_notifications_read' %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary">
+                ✓ Mark All as Read
+            </button>
+        </form>
+        {% endif %}
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Filter Tabs -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+    <a href="{% url 'notification_list' %}" class="btn btn-sm {% if filter_status != 'unread' %}btn-primary{% else %}btn-secondary{% endif %}">
+        All Notifications
+    </a>
+    <a href="{% url 'notification_list' %}?filter=unread" class="btn btn-sm {% if filter_status == 'unread' %}btn-primary{% else %}btn-secondary{% endif %}">
+        Unread {% if unread_count > 0 %}({{ unread_count }}){% endif %}
+    </a>
+</div>
+
+{% if notifications %}
+<div style="display: flex; flex-direction: column; gap: 0.75rem;">
+    {% for notif in notifications %}
+    <a href="{% url 'mark_notification_read' notif.id %}" class="card notification-card {% if not notif.is_read %}unread{% endif %}" style="margin-bottom: 0; padding: 1.15rem 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+            <div style="display: flex; gap: 0.85rem; align-items: flex-start;">
+                <div style="font-size: 1.25rem; flex-shrink: 0; line-height: 1; padding-top: 0.2rem;">
+                    {% if notif.content_type == "announcement" %}
+                        📢
+                    {% elif notif.content_type == "course_resource" %}
+                        📂
+                    {% elif notif.content_type == "course_link" %}
+                        🔗
+                    {% else %}
+                        🔔
+                    {% endif %}
+                </div>
+
+                <div>
+                    <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.25rem; flex-wrap: wrap;">
+                        {% if not notif.is_read %}
+                        <span class="badge badge-admin">New</span>
+                        {% endif %}
+
+                        {% if notif.course %}
+                        <span class="badge badge-student">{{ notif.course.code }}</span>
+                        {% else %}
+                        <span class="badge badge-secondary">General</span>
+                        {% endif %}
+
+                        <span style="font-size: 0.78rem; color: var(--text-muted);">
+                            {{ notif.created_at|timesince }} ago &bull; {{ notif.created_at|date:"d M, H:i" }}
+                        </span>
+                    </div>
+
+                    <h2 style="font-size: 1.05rem; font-weight: 600; color: var(--text-dark); margin: 0 0 0.35rem 0;">
+                        {{ notif.title }}
+                    </h2>
+
+                    <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0; line-height: 1.45;">
+                        {{ notif.message }}
+                    </p>
+                </div>
+            </div>
+
+            <div style="flex-shrink: 0; font-size: 0.85rem; color: var(--text-muted);">
+                ➔
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
+    <p style="font-size: 1rem; margin-bottom: 0.5rem;">
+        {% if filter_status == 'unread' %}
+            You have no unread notifications.
+        {% else %}
+            You're all caught up! No notifications to display.
+        {% endif %}
+    </p>
+    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-sm" style="margin-top: 0.5rem;">
+        Return to Dashboard
+    </a>
+</div>
+{% endif %}
+{% endblock %}

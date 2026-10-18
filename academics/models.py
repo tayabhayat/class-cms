@@ -102,6 +102,24 @@ class Attendance(models.Model):
 class Announcement(models.Model):
     title = models.CharField(max_length=200)
     message = models.TextField()
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="announcements",
+        null=True,
+        blank=True,
+        help_text="Course for this notice, or blank for general class-wide announcements.",
+    )
+    is_published = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Unpublished notices are drafts visible only to Admins/CRs.",
+    )
+    is_pinned = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Pinned notices appear prominently at the top.",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -110,7 +128,12 @@ class Announcement(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["-is_pinned", "-created_at"]
+
     def __str__(self):
+        if self.course:
+            return f"[{self.course.code}] {self.title}"
         return self.title
 
 
@@ -352,3 +375,137 @@ class PollVote(models.Model):
     def __str__(self):
         return f"{self.student.email} voted in {self.poll.question}"
 
+
+class CourseResource(models.Model):
+    class Category(models.TextChoices):
+        LECTURE_NOTES = "lecture_notes", "Lecture Slides & Notes"
+        BOOK = "book", "Textbooks & Reference Books"
+        STUDY_GUIDE = "study_guide", "Study Guides & Past Papers"
+        OTHER = "other", "Other Educational Material"
+
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="resources",
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    category = models.CharField(
+        max_length=50,
+        choices=Category.choices,
+        default=Category.LECTURE_NOTES,
+    )
+    file = models.FileField(upload_to="course_resources/%Y/%m/")
+    original_filename = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveIntegerField(
+        default=0,
+        help_text="File size in bytes.",
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="uploaded_resources",
+    )
+    is_published = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Unpublished resources are drafts visible only to Admins/CRs.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category", "-created_at"]
+
+    def __str__(self):
+        return f"{self.course.code} - {self.title}"
+
+    def file_size_display(self):
+        if not self.file_size:
+            return "0 KB"
+        if self.file_size < 1024 * 1024:
+            return f"{round(self.file_size / 1024, 1)} KB"
+        return f"{round(self.file_size / (1024 * 1024), 2)} MB"
+
+
+class CourseLink(models.Model):
+    class Category(models.TextChoices):
+        WHATSAPP = "whatsapp", "WhatsApp / Discussion Group"
+        VIDEO = "video", "Lecture Video / Playlist"
+        WEBSITE = "website", "Course / Official Website"
+        REFERENCE = "reference", "Reference & Documentation"
+        OTHER = "other", "Other Link"
+
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="links",
+    )
+    title = models.CharField(max_length=200)
+    url = models.URLField(max_length=500)
+    description = models.TextField(blank=True)
+    category = models.CharField(
+        max_length=50,
+        choices=Category.choices,
+        default=Category.REFERENCE,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="created_course_links",
+    )
+    is_published = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text="Unpublished links are drafts visible only to Admins/CRs.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["category", "-created_at"]
+
+    def __str__(self):
+        return f"{self.course.code} - {self.title}"
+
+
+class Notification(models.Model):
+    class ContentType(models.TextChoices):
+        ANNOUNCEMENT = "announcement", "Course Notice"
+        RESOURCE = "resource", "Study Material"
+        LINK = "link", "Useful Link"
+
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="notifications",
+        null=True,
+        blank=True,
+    )
+    title = models.CharField(max_length=200)
+    message = models.CharField(max_length=500)
+    target_url = models.CharField(max_length=300, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    content_type = models.CharField(max_length=50, blank=True)
+    content_id = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "content_type", "content_id"],
+                name="unique_recipient_content_notification",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["recipient", "is_read", "-created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Notification for {self.recipient.email}: {self.title}"

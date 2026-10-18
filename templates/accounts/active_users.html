@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Active Users | PUCIT Class CMS{% endblock %}
+{% block nav_active_users %}active{% endblock %}
+
+{% block breadcrumb %}
+    / <a href="{% url 'dashboard' %}">Dashboard</a>
+    / <span class="current">Active Users</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Currently Active Users</h1>
+        <p class="page-subtitle">
+            Monitor recent user activity and system engagement across the class management portal.
+        </p>
+    </div>
+    <div class="quick-actions" style="margin-bottom: 0;">
+        <a href="{% url 'admin_student_list' %}" class="btn btn-secondary">
+            Student Password Resets
+        </a>
+        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+            Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<!-- Overview Metrics Strip -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--success);">{{ active_now_count }}</div>
+        <div class="stat-label">Active Now (&lt; 5 mins)</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--text-main);">{{ active_today_count }}</div>
+        <div class="stat-label">Active Today</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ total_users_count }}</div>
+        <div class="stat-label">Total Registered Users</div>
+    </div>
+</div>
+
+<!-- Explanatory Disclaimer Banner -->
+<div class="alert alert-info" style="margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 0.75rem;">
+    <span style="font-size: 1.2rem; line-height: 1;" aria-hidden="true">ℹ️</span>
+    <div>
+        <strong>About Activity Tracking:</strong>
+        Activity status is an estimate based on recent authenticated requests processed by the CMS within the last 5 minutes.
+        It is not real-time proof that a user is actively viewing their screen. An open browser tab left idle without user requests will not update activity and may appear inactive.
+    </div>
+</div>
+
+<!-- Filters and Table Card -->
+<div class="card" style="padding: 1.5rem;">
+    <form method="get" action="{% url 'active_users' %}" style="display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1.5rem;">
+        <div style="flex-grow: 1; min-width: 200px;">
+            <label for="user-search" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
+                Search by Name, Email, or Roll Number:
+            </label>
+            <input type="text" id="user-search" name="q" value="{{ search_query }}" placeholder="e.g. BITF24A001 or Ayesha" style="width: 100%;">
+        </div>
+        <div style="min-width: 150px;">
+            <label for="role-filter" style="display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; color: var(--text-main);">
+                Filter by Role:
+            </label>
+            <select id="role-filter" name="role" style="width: 100%;">
+                <option value="">All Roles</option>
+                <option value="student" {% if role_filter == "student" %}selected{% endif %}>Students Only</option>
+                <option value="admin" {% if role_filter == "admin" %}selected{% endif %}>Admins / CRs Only</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height: 38px;">
+            Filter
+        </button>
+        {% if search_query or role_filter %}
+        <a href="{% url 'active_users' %}" class="btn btn-secondary" style="height: 38px; display: inline-flex; align-items: center;">
+            Reset
+        </a>
+        {% endif %}
+    </form>
+
+    {% if not users %}
+        <div style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted);">
+            <p style="font-size: 1rem; margin-bottom: 0.5rem;">No users matched your search criteria.</p>
+            <a href="{% url 'active_users' %}" class="btn btn-secondary btn-sm">Clear Filter</a>
+        </div>
+    {% else %}
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 45px; text-align: center;">#</th>
+                        <th style="min-width: 130px;">Roll Number</th>
+                        <th style="min-width: 180px;">User</th>
+                        <th style="min-width: 110px; text-align: center;">Role</th>
+                        <th style="min-width: 160px;">Last Activity</th>
+                        <th style="min-width: 140px; text-align: center;">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in users %}
+                    <tr>
+                        <td style="text-align: center; color: var(--text-muted); font-size: 0.82rem;">
+                            {{ forloop.counter }}
+                        </td>
+                        <td>
+                            <strong>{{ item.student_id }}</strong>
+                        </td>
+                        <td>
+                            <div style="font-weight: 600; color: var(--text-main);">
+                                {{ item.name }}
+                            </div>
+                            <div style="font-size: 0.78rem; color: var(--text-muted);">
+                                {{ item.email }}
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if item.role == "admin" %}
+                                <span class="badge badge-admin">CR / Admin</span>
+                            {% else %}
+                                <span class="badge badge-id">Student</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.last_activity %}
+                                <div style="font-weight: 500; color: var(--text-main);">
+                                    {{ item.last_activity|date:"d M Y, h:i A" }}
+                                </div>
+                                <div style="font-size: 0.76rem; color: var(--text-muted);">
+                                    {{ item.last_activity|timesince }} ago
+                                </div>
+                            {% else %}
+                                <span style="color: var(--text-muted); font-size: 0.85rem;">Never</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: center;">
+                            {% if item.is_active_now %}
+                                <span class="badge badge-present" style="display: inline-flex; align-items: center; gap: 0.35rem;" title="Authenticated request in the last 5 minutes">
+                                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background-color: currentColor;"></span>
+                                    Active now
+                                </span>
+                            {% elif item.last_activity %}
+                                <span class="badge badge-secondary" title="Last seen {{ item.last_activity|date:'Y-m-d H:i' }}">
+                                    Last seen {{ item.last_activity|timesince }} ago
+                                </span>
+                            {% else %}
+                                <span class="badge badge-unrecorded" title="No activity recorded yet">
+                                    No recorded activity
+                                </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

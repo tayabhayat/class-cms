@@ -5,6 +5,9 @@ from .models import (
     AttendanceSession,
     Attendance,
     Announcement,
+    CourseResource,
+    CourseLink,
+    Notification,
     SubmissionTask,
     Submission,
     Poll,
@@ -69,8 +72,30 @@ class AttendanceAdmin(admin.ModelAdmin):
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ("title", "created_by", "created_at")
-    search_fields = ("title", "message")
+    list_display = ("title", "course", "is_published", "is_pinned", "created_by", "created_at")
+    list_filter = ("course", "is_published", "is_pinned", "created_at")
+    search_fields = ("title", "message", "course__code", "course__name")
+
+
+@admin.register(CourseResource)
+class CourseResourceAdmin(admin.ModelAdmin):
+    list_display = ("title", "course", "category", "file_size_display", "is_published", "uploaded_by", "created_at")
+    list_filter = ("course", "category", "is_published", "created_at")
+    search_fields = ("title", "description", "original_filename", "course__code")
+
+
+@admin.register(CourseLink)
+class CourseLinkAdmin(admin.ModelAdmin):
+    list_display = ("title", "course", "category", "url", "is_published", "created_by", "created_at")
+    list_filter = ("course", "category", "is_published", "created_at")
+    search_fields = ("title", "description", "url", "course__code")
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("recipient", "title", "course", "is_read", "content_type", "created_at")
+    list_filter = ("is_read", "content_type", "course", "created_at")
+    search_fields = ("recipient__email", "title", "message")
 
 
 @admin.register(SubmissionTask)

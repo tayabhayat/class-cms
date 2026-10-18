@@ -26,6 +26,11 @@
             Import Attendance (.xlsx)
         </a>
         {% endif %}
+        {% if sessions %}
+        <a href="{% url 'edit_attendance_picker' course.id %}" class="btn btn-secondary">
+            Edit Attendance
+        </a>
+        {% endif %}
         <a href="{% url 'course_detail' course.id %}" class="btn btn-secondary">
             Course Details
         </a>
@@ -92,8 +97,13 @@
                         <th style="min-width: 130px;">Roll Number</th>
                         <th style="min-width: 170px;">Student Name</th>
                         {% for session in sessions %}
-                            <th style="min-width: 75px; text-align: center; white-space: nowrap;" title="{{ session.date|date:'l, d F Y' }}">
-                                {{ session.date|date:"d M" }}
+                            <th style="min-width: 80px; text-align: center; white-space: nowrap;" title="{{ session.date|date:'l, d F Y' }}">
+                                <div>{{ session.date|date:"d M" }}</div>
+                                <div style="margin-top: 0.25rem;">
+                                    <a href="{% url 'edit_attendance_session' course.id session.id %}" class="btn btn-secondary btn-sm" style="padding: 1px 6px; font-size: 0.72rem; text-decoration: none;" title="Edit attendance for {{ session.date }}">
+                                        Edit
+                                    </a>
+                                </div>
                             </th>
                         {% endfor %}
                         <th style="width: 70px; text-align: center;" title="Total Present Sessions">Present</th>

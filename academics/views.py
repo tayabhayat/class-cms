@@ -15,6 +15,7 @@ from django.http import FileResponse, Http404, HttpResponse, HttpResponseForbidd
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .attendance_import import parse_attendance_excel
 from .enrollment_import import parse_enrollment_excel
@@ -23,6 +24,9 @@ from .forms import (
     AttendanceEntryForm,
     AttendanceImportForm,
     CourseForm,
+    CourseLinkForm,
+    CourseResourceEditForm,
+    CourseResourceForm,
     EnrollmentImportForm,
     PollForm,
     PollVoteForm,
@@ -34,7 +38,10 @@ from .models import (
     Attendance,
     AttendanceSession,
     Course,
+    CourseLink,
+    CourseResource,
     Enrollment,
+    Notification,
     Poll,
     PollOption,
     PollVote,
@@ -77,10 +84,21 @@ def dashboard(request):
             .select_related("course")
         )
         courses = [enrollment.course for enrollment in enrollments]
+        student_course_ids = [c.id for c in courses]
+        announcements = (
+            Announcement.objects
+            .filter(is_published=True)
+            .filter(Q(course__isnull=True) | Q(course_id__in=student_course_ids))
+            .select_related("created_by", "course")
+            .order_by("-is_pinned", "-created_at")[:5]
+        )
     else:
         courses = Course.objects.filter(is_active=True)
-
-    announcements = Announcement.objects.order_by("-created_at")[:5]
+        announcements = (
+            Announcement.objects
+            .select_related("created_by", "course")
+            .order_by("-is_pinned", "-created_at")[:5]
+        )
 
     return render(
         request,
@@ -346,6 +364,142 @@ def view_course_attendance(request, course_id):
             "class_average_percentage": class_average_percentage,
         },
     )
+
+
+@login_required
+@user_passes_test(is_admin)
+def edit_attendance_session(request, course_id, session_id=None):
+    """
+    Allows Admin/CR to inspect and edit previously recorded attendance for an existing session.
+    Supports modifying multiple enrolled students' attendance statuses in a single atomic transaction.
+    """
+    course = get_object_or_404(Course, id=course_id)
+
+    # Fetch all sessions for this course, ordered newest first
+    sessions = list(AttendanceSession.objects.filter(course=course).order_by("-date", "-id"))
+
+    # Resolve target session
+    selected_session = None
+    if session_id is not None:
+        selected_session = get_object_or_404(AttendanceSession, id=session_id, course=course)
+    else:
+        req_session_id = request.GET.get("session_id") or request.GET.get("session")
+        if req_session_id:
+            try:
+                selected_session = get_object_or_404(
+                    AttendanceSession, id=int(req_session_id), course=course
+                )
+            except (ValueError, TypeError):
+                messages.error(request, "Invalid session identifier.")
+                return redirect("edit_attendance_picker", course_id=course.id)
+        elif sessions:
+            selected_session = sessions[0]
+
+    # Fetch enrolled students
+    enrolled_students = list(
+        User.objects.filter(
+            role="student",
+            enrollments__course=course,
+        ).order_by("student_id", "first_name", "email")
+    )
+    allowed_ids = {student.id for student in enrolled_students}
+
+    if request.method == "POST":
+        if not selected_session:
+            messages.error(request, "No attendance session selected to edit.")
+            return redirect("edit_attendance_picker", course_id=course.id)
+
+        valid_statuses = {
+            Attendance.Status.PRESENT,
+            Attendance.Status.ABSENT,
+            Attendance.Status.LEAVE,
+        }
+        updates = {}
+        validation_errors = []
+
+        for key, val in request.POST.items():
+            if key.startswith("status_"):
+                raw_id = key[len("status_"):]
+                try:
+                    s_id = int(raw_id)
+                except ValueError:
+                    validation_errors.append(f"Invalid student ID format: {raw_id}.")
+                    continue
+
+                if s_id not in allowed_ids:
+                    validation_errors.append(
+                        f"Student with ID {s_id} is not enrolled in {course.code}."
+                    )
+                    continue
+
+                status_val = val.strip().lower()
+                if status_val not in valid_statuses:
+                    validation_errors.append(
+                        f"Invalid attendance status '{val}' submitted for student ID {s_id}."
+                    )
+                    continue
+
+                updates[s_id] = status_val
+
+        if validation_errors:
+            for err in validation_errors:
+                messages.error(request, err)
+        elif not updates:
+            messages.warning(request, "No student attendance changes were submitted.")
+        else:
+            with transaction.atomic():
+                for s_id, status_val in updates.items():
+                    Attendance.objects.update_or_create(
+                        session=selected_session,
+                        student_id=s_id,
+                        defaults={"status": status_val},
+                    )
+
+            messages.success(
+                request,
+                f"Attendance for session on {selected_session.date} updated successfully. "
+                f"{len(updates)} student record(s) saved."
+            )
+            return redirect(
+                "edit_attendance_session",
+                course_id=course.id,
+                session_id=selected_session.id,
+            )
+
+    # Fetch existing attendance records for the selected session
+    existing_records = {}
+    if selected_session:
+        existing_records = {
+            rec.student_id: rec.status
+            for rec in Attendance.objects.filter(session=selected_session)
+        }
+
+    for student in enrolled_students:
+        student.current_status = existing_records.get(student.id, "")
+
+    present_count = sum(
+        1 for s in existing_records.values() if s == Attendance.Status.PRESENT
+    )
+    absent_count = sum(
+        1 for s in existing_records.values() if s == Attendance.Status.ABSENT
+    )
+    leave_count = sum(
+        1 for s in existing_records.values() if s == Attendance.Status.LEAVE
+    )
+    unmarked_count = len(enrolled_students) - len(existing_records)
+
+    context = {
+        "course": course,
+        "sessions": sessions,
+        "selected_session": selected_session,
+        "students": enrolled_students,
+        "present_count": present_count,
+        "absent_count": absent_count,
+        "leave_count": leave_count,
+        "unmarked_count": max(0, unmarked_count),
+    }
+
+    return render(request, "academics/edit_attendance_session.html", context)
 
 
 @login_required
@@ -874,36 +1028,192 @@ def toggle_course_status(request, course_id):
     )
 
 
+def create_course_notifications(course, title, message, target_url, content_type, content_id):
+    """
+    Creates in-portal notifications for all students enrolled in the given course.
+    Relies on UniqueConstraint(fields=["recipient", "content_type", "content_id"])
+    and ignore_conflicts=True to deduplicate and prevent duplicate notices.
+    """
+    if not course:
+        return 0
+    enrolled_student_ids = Enrollment.objects.filter(
+        course=course,
+        course__is_active=True,
+    ).values_list("student_id", flat=True)
+
+    notifications = [
+        Notification(
+            recipient_id=student_id,
+            course=course,
+            title=title,
+            message=message,
+            target_url=target_url,
+            content_type=content_type,
+            content_id=content_id,
+        )
+        for student_id in enrolled_student_ids
+    ]
+    if notifications:
+        created = Notification.objects.bulk_create(notifications, ignore_conflicts=True)
+        return len(created)
+    return 0
+
+
+def create_announcement_notifications(announcement):
+    """Generates notifications when an announcement is published."""
+    if not announcement.is_published:
+        return 0
+    target_url = reverse("announcement_detail", kwargs={"announcement_id": announcement.id})
+    title = f"Notice: {announcement.title}"
+    msg = announcement.message[:120] + ("..." if len(announcement.message) > 120 else "")
+
+    if announcement.course:
+        return create_course_notifications(
+            course=announcement.course,
+            title=title,
+            message=msg,
+            target_url=target_url,
+            content_type="announcement",
+            content_id=announcement.id,
+        )
+    else:
+        # General announcement to all active students
+        student_ids = User.objects.filter(role=User.Role.STUDENT, is_active=True).values_list("id", flat=True)
+        notifications = [
+            Notification(
+                recipient_id=sid,
+                course=None,
+                title=f"General Notice: {announcement.title}",
+                message=msg,
+                target_url=target_url,
+                content_type="announcement",
+                content_id=announcement.id,
+            )
+            for sid in student_ids
+        ]
+        if notifications:
+            created = Notification.objects.bulk_create(notifications, ignore_conflicts=True)
+            return len(created)
+    return 0
+
+
 @login_required
-def announcement_list(request):
+def announcement_list(request, course_id=None):
+    selected_course_id = course_id or request.GET.get("course")
+    selected_course = None
+
+    if request.user.role == "student":
+        student_enrollments = (
+            Enrollment.objects
+            .filter(student=request.user, course__is_active=True)
+            .select_related("course")
+        )
+        student_courses = [e.course for e in student_enrollments]
+        student_course_ids = [c.id for c in student_courses]
+
+        base_qs = Announcement.objects.filter(
+            is_published=True
+        ).filter(
+            Q(course__isnull=True) | Q(course_id__in=student_course_ids)
+        )
+
+        courses = student_courses
+
+        if selected_course_id:
+            try:
+                selected_course_id_int = int(selected_course_id)
+                if selected_course_id_int in student_course_ids:
+                    base_qs = base_qs.filter(course_id=selected_course_id_int)
+                    selected_course = next(c for c in student_courses if c.id == selected_course_id_int)
+                elif selected_course_id == "general":
+                    base_qs = base_qs.filter(course__isnull=True)
+                else:
+                    return HttpResponseForbidden("You are not enrolled in this course.")
+            except ValueError:
+                if selected_course_id == "general":
+                    base_qs = base_qs.filter(course__isnull=True)
+    else:
+        courses = Course.objects.filter(is_active=True).order_by("code")
+        base_qs = Announcement.objects.all()
+
+        if selected_course_id:
+            if selected_course_id == "general":
+                base_qs = base_qs.filter(course__isnull=True)
+            else:
+                try:
+                    selected_course = get_object_or_404(Course, id=int(selected_course_id))
+                    base_qs = base_qs.filter(course=selected_course)
+                except ValueError:
+                    pass
+
     announcements = (
-        Announcement.objects
-        .select_related("created_by")
-        .order_by("-created_at")
+        base_qs
+        .select_related("created_by", "course")
+        .order_by("-is_pinned", "-created_at")
     )
+
     return render(
         request,
         "academics/announcement_list.html",
-        {"announcements": announcements},
+        {
+            "announcements": announcements,
+            "courses": courses,
+            "selected_course_id": str(selected_course_id) if selected_course_id else "",
+            "selected_course": selected_course,
+        },
+    )
+
+
+@login_required
+def announcement_detail(request, announcement_id):
+    announcement = get_object_or_404(
+        Announcement.objects.select_related("created_by", "course"),
+        id=announcement_id,
+    )
+    if request.user.role == "student":
+        if not announcement.is_published:
+            raise Http404("Announcement not found.")
+        if announcement.course:
+            is_enrolled = Enrollment.objects.filter(
+                student=request.user,
+                course=announcement.course,
+                course__is_active=True,
+            ).exists()
+            if not is_enrolled:
+                return HttpResponseForbidden("You are not enrolled in this course.")
+
+    return render(
+        request,
+        "academics/announcement_detail.html",
+        {"announcement": announcement},
     )
 
 
 @login_required
 @user_passes_test(is_admin)
 def create_announcement(request):
+    initial_course_id = request.GET.get("course")
     if request.method == "POST":
         form = AnnouncementForm(request.POST)
         if form.is_valid():
             announcement = form.save(commit=False)
             announcement.created_by = request.user
             announcement.save()
+            if announcement.is_published:
+                create_announcement_notifications(announcement)
             messages.success(
                 request,
                 f"Announcement '{announcement.title}' posted successfully."
             )
             return redirect("announcement_list")
     else:
-        form = AnnouncementForm()
+        initial = {}
+        if initial_course_id:
+            try:
+                initial["course"] = Course.objects.get(id=int(initial_course_id))
+            except (Course.DoesNotExist, ValueError):
+                pass
+        form = AnnouncementForm(initial=initial)
 
     return render(
         request,
@@ -920,10 +1230,13 @@ def create_announcement(request):
 @user_passes_test(is_admin)
 def edit_announcement(request, announcement_id):
     announcement = get_object_or_404(Announcement, id=announcement_id)
+    was_published = announcement.is_published
     if request.method == "POST":
         form = AnnouncementForm(request.POST, instance=announcement)
         if form.is_valid():
-            form.save()
+            announcement = form.save()
+            if not was_published and announcement.is_published:
+                create_announcement_notifications(announcement)
             messages.success(
                 request,
                 f"Announcement '{announcement.title}' updated successfully."
@@ -962,6 +1275,358 @@ def delete_announcement(request, announcement_id):
         "academics/announcement_confirm_delete.html",
         {"announcement": announcement},
     )
+
+
+# ---------------------------------------------------------------------------
+# Course Resources & Useful Links Views
+# ---------------------------------------------------------------------------
+
+@login_required
+def course_resources(request, course_id):
+    if request.user.role == "student":
+        enrollment = get_object_or_404(
+            Enrollment.objects.select_related("course"),
+            student=request.user,
+            course_id=course_id,
+            course__is_active=True,
+        )
+        course = enrollment.course
+        resources_qs = CourseResource.objects.filter(course=course, is_published=True)
+        links_qs = CourseLink.objects.filter(course=course, is_published=True)
+    else:
+        course = get_object_or_404(Course, id=course_id)
+        resources_qs = CourseResource.objects.filter(course=course)
+        links_qs = CourseLink.objects.filter(course=course)
+
+    category_filter = request.GET.get("category", "").strip()
+    if category_filter:
+        resources_qs = resources_qs.filter(category=category_filter)
+        links_qs = links_qs.filter(category=category_filter)
+
+    resources = resources_qs.select_related("uploaded_by").order_by("-created_at")
+    links = links_qs.select_related("created_by").order_by("-created_at")
+
+    return render(
+        request,
+        "academics/course_resources.html",
+        {
+            "course": course,
+            "resources": resources,
+            "links": links,
+            "selected_category": category_filter,
+            "resource_categories": CourseResource.Category.choices,
+            "link_categories": CourseLink.Category.choices,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def upload_course_resource(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    if request.method == "POST":
+        form = CourseResourceForm(request.POST, request.FILES)
+        if form.is_valid():
+            resource = form.save(commit=False)
+            resource.course = course
+            resource.uploaded_by = request.user
+            file_obj = request.FILES["file"]
+            resource.original_filename = file_obj.name
+            resource.file_size = file_obj.size
+            resource.save()
+            if resource.is_published:
+                target_url = reverse("course_resources", kwargs={"course_id": course.id})
+                create_course_notifications(
+                    course=course,
+                    title=f"New Study Material: {resource.title}",
+                    message=f"New {resource.get_category_display()} uploaded for {course.code}.",
+                    target_url=target_url,
+                    content_type="course_resource",
+                    content_id=resource.id,
+                )
+            messages.success(request, f"Study material '{resource.title}' uploaded successfully.")
+            return redirect("course_resources", course_id=course.id)
+    else:
+        form = CourseResourceForm()
+
+    return render(
+        request,
+        "academics/course_resource_form.html",
+        {
+            "form": form,
+            "course": course,
+            "title": f"Upload Study Material — {course.code}",
+            "is_create": True,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def edit_course_resource(request, resource_id):
+    resource = get_object_or_404(
+        CourseResource.objects.select_related("course"),
+        id=resource_id,
+    )
+    course = resource.course
+    was_published = resource.is_published
+
+    if request.method == "POST":
+        form = CourseResourceEditForm(request.POST, request.FILES, instance=resource)
+        if form.is_valid():
+            if "file" in request.FILES:
+                new_file = request.FILES["file"]
+                if resource.file:
+                    try:
+                        resource.file.delete(save=False)
+                    except Exception:
+                        pass
+                resource.file = new_file
+                resource.original_filename = new_file.name
+                resource.file_size = new_file.size
+            resource = form.save()
+            if not was_published and resource.is_published:
+                target_url = reverse("course_resources", kwargs={"course_id": course.id})
+                create_course_notifications(
+                    course=course,
+                    title=f"New Study Material: {resource.title}",
+                    message=f"New {resource.get_category_display()} uploaded for {course.code}.",
+                    target_url=target_url,
+                    content_type="course_resource",
+                    content_id=resource.id,
+                )
+            messages.success(request, f"Study material '{resource.title}' updated successfully.")
+            return redirect("course_resources", course_id=course.id)
+    else:
+        form = CourseResourceEditForm(instance=resource)
+
+    return render(
+        request,
+        "academics/course_resource_form.html",
+        {
+            "form": form,
+            "resource": resource,
+            "course": course,
+            "title": f"Edit Study Material — {course.code}",
+            "is_create": False,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def delete_course_resource(request, resource_id):
+    resource = get_object_or_404(
+        CourseResource.objects.select_related("course"),
+        id=resource_id,
+    )
+    course_id = resource.course_id
+    title = resource.title
+    if request.method == "POST":
+        if resource.file:
+            try:
+                resource.file.delete(save=False)
+            except Exception:
+                pass
+        resource.delete()
+        messages.success(request, f"Study material '{title}' deleted successfully.")
+        return redirect("course_resources", course_id=course_id)
+
+    return render(
+        request,
+        "academics/course_resource_confirm_delete.html",
+        {"resource": resource, "course": resource.course},
+    )
+
+
+@login_required
+def download_course_resource(request, resource_id):
+    resource = get_object_or_404(
+        CourseResource.objects.select_related("course"),
+        id=resource_id,
+    )
+
+    if request.user.role == "student":
+        if not resource.is_published:
+            raise Http404("Resource not found.")
+        is_enrolled = Enrollment.objects.filter(
+            student=request.user,
+            course=resource.course,
+            course__is_active=True,
+        ).exists()
+        if not is_enrolled:
+            return HttpResponseForbidden("You do not have permission to download this file.")
+
+    if not resource.file:
+        raise Http404("No file attached to this resource.")
+
+    try:
+        file_handle = resource.file.open("rb")
+        raw_name = resource.original_filename or os.path.basename(resource.file.name)
+        safe_name = sanitize_filename(raw_name)
+        return FileResponse(file_handle, as_attachment=True, filename=safe_name)
+    except (FileNotFoundError, ValueError):
+        raise Http404("File not found on server.")
+
+
+@login_required
+@user_passes_test(is_admin)
+def create_course_link(request, course_id):
+    course = get_object_or_404(Course, id=course_id)
+    if request.method == "POST":
+        form = CourseLinkForm(request.POST)
+        if form.is_valid():
+            link = form.save(commit=False)
+            link.course = course
+            link.created_by = request.user
+            link.save()
+            if link.is_published:
+                target_url = reverse("course_resources", kwargs={"course_id": course.id})
+                create_course_notifications(
+                    course=course,
+                    title=f"New Useful Link: {link.title}",
+                    message=f"New {link.get_category_display()} link shared for {course.code}.",
+                    target_url=target_url,
+                    content_type="course_link",
+                    content_id=link.id,
+                )
+            messages.success(request, f"Link '{link.title}' added successfully.")
+            return redirect("course_resources", course_id=course.id)
+    else:
+        form = CourseLinkForm()
+
+    return render(
+        request,
+        "academics/course_link_form.html",
+        {
+            "form": form,
+            "course": course,
+            "title": f"Add Useful Link — {course.code}",
+            "is_create": True,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def edit_course_link(request, link_id):
+    link = get_object_or_404(
+        CourseLink.objects.select_related("course"),
+        id=link_id,
+    )
+    course = link.course
+    was_published = link.is_published
+
+    if request.method == "POST":
+        form = CourseLinkForm(request.POST, instance=link)
+        if form.is_valid():
+            link = form.save()
+            if not was_published and link.is_published:
+                target_url = reverse("course_resources", kwargs={"course_id": course.id})
+                create_course_notifications(
+                    course=course,
+                    title=f"New Useful Link: {link.title}",
+                    message=f"New {link.get_category_display()} link shared for {course.code}.",
+                    target_url=target_url,
+                    content_type="course_link",
+                    content_id=link.id,
+                )
+            messages.success(request, f"Link '{link.title}' updated successfully.")
+            return redirect("course_resources", course_id=course.id)
+    else:
+        form = CourseLinkForm(instance=link)
+
+    return render(
+        request,
+        "academics/course_link_form.html",
+        {
+            "form": form,
+            "link": link,
+            "course": course,
+            "title": f"Edit Useful Link — {course.code}",
+            "is_create": False,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_admin)
+def delete_course_link(request, link_id):
+    link = get_object_or_404(
+        CourseLink.objects.select_related("course"),
+        id=link_id,
+    )
+    course_id = link.course_id
+    title = link.title
+    if request.method == "POST":
+        link.delete()
+        messages.success(request, f"Link '{title}' deleted successfully.")
+        return redirect("course_resources", course_id=course_id)
+
+    return render(
+        request,
+        "academics/course_link_confirm_delete.html",
+        {"link": link, "course": link.course},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Notification Views
+# ---------------------------------------------------------------------------
+
+@login_required
+def notification_list(request):
+    filter_status = request.GET.get("filter", "all")
+    qs = Notification.objects.filter(recipient=request.user).select_related("course")
+    if filter_status == "unread":
+        qs = qs.filter(is_read=False)
+
+    notifications = qs.order_by("-created_at")
+    unread_count = Notification.objects.filter(recipient=request.user, is_read=False).count()
+
+    return render(
+        request,
+        "academics/notification_list.html",
+        {
+            "notifications": notifications,
+            "filter_status": filter_status,
+            "unread_count": unread_count,
+        },
+    )
+
+
+@login_required
+def mark_notification_read(request, notification_id):
+    notification = get_object_or_404(
+        Notification,
+        id=notification_id,
+        recipient=request.user,
+    )
+    if not notification.is_read:
+        notification.is_read = True
+        notification.save(update_fields=["is_read"])
+
+    target_url = notification.target_url
+    if target_url and url_has_allowed_host_and_scheme(
+        url=target_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(target_url)
+
+    return redirect("notification_list")
+
+
+@login_required
+def mark_all_notifications_read(request):
+    if request.method in ("POST", "GET"):
+        Notification.objects.filter(
+            recipient=request.user,
+            is_read=False,
+        ).update(is_read=True)
+        messages.success(request, "All notifications marked as read.")
+    return redirect("notification_list")
+
 
 
 # ---------------------------------------------------------------------------
@@ -1531,4 +2196,3 @@ def close_poll(request, poll_id):
         "academics/poll_confirm_close.html",
         {"poll": poll},
     )
-

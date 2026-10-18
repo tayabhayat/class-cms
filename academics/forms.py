@@ -1,6 +1,18 @@
 
+import os
+from urllib.parse import urlparse
+
 from django import forms
-from .models import Course, Announcement, SubmissionTask, Submission, Poll, PollOption
+from .models import (
+    Course,
+    Announcement,
+    CourseResource,
+    CourseLink,
+    SubmissionTask,
+    Submission,
+    Poll,
+    PollOption,
+)
 
 
 class CourseForm(forms.ModelForm):
@@ -43,12 +55,25 @@ class CourseForm(forms.ModelForm):
 
 
 class AnnouncementForm(forms.ModelForm):
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.filter(is_active=True).order_by("code"),
+        required=False,
+        empty_label="General (Class-Wide Notice)",
+        label="Target Course",
+        help_text="Select a course to make this notice course-specific, or leave blank for a general class-wide announcement.",
+    )
+    is_pinned = forms.BooleanField(required=False, initial=False, label="Pin to top")
+    is_published = forms.BooleanField(required=False, initial=True, label="Publish immediately")
+
     class Meta:
         model = Announcement
-        fields = ["title", "message"]
+        fields = ["title", "message", "course", "is_pinned", "is_published"]
         labels = {
             "title": "Announcement Title",
             "message": "Message Content",
+            "course": "Target Course",
+            "is_pinned": "Pin to top",
+            "is_published": "Publish immediately",
         }
         widgets = {
             "title": forms.TextInput(attrs={
@@ -72,6 +97,21 @@ class AnnouncementForm(forms.ModelForm):
         if not message:
             raise forms.ValidationError("Message content is required.")
         return message
+
+    def clean_is_published(self):
+        if "_has_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        if "is_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        return self.instance.is_published if self.instance.pk else True
+
+    def clean_is_pinned(self):
+        if "_has_pinned" in self.data:
+            return bool(self.cleaned_data.get("is_pinned"))
+        if "is_pinned" in self.data:
+            return bool(self.cleaned_data.get("is_pinned"))
+        return self.instance.is_pinned if self.instance.pk else False
+
 
 
 class AttendanceEntryForm(forms.Form):
@@ -440,3 +480,164 @@ class PollVoteForm(forms.Form):
         if poll:
             self.fields["option"].queryset = poll.options.all()
 
+
+RESOURCE_ALLOWED_EXTENSIONS = {
+    ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
+    ".txt", ".rtf", ".csv", ".zip", ".rar", ".7z", ".tar", ".gz",
+    ".png", ".jpg", ".jpeg"
+}
+RESOURCE_DANGEROUS_EXTENSIONS = {
+    ".exe", ".bat", ".cmd", ".sh", ".com", ".msi", ".php",
+    ".phtml", ".html", ".htm", ".svg", ".js", ".vbs", ".scr", ".jar", ".py"
+}
+RESOURCE_MAX_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+
+
+class CourseResourceForm(forms.ModelForm):
+    is_published = forms.BooleanField(required=False, initial=True, label="Publish immediately")
+
+    class Meta:
+        model = CourseResource
+        fields = ["title", "category", "description", "file", "is_published"]
+        labels = {
+            "title": "Resource Title",
+            "category": "Category",
+            "description": "Description / Notes",
+            "file": "File Upload (Max 25 MB)",
+            "is_published": "Publish immediately",
+        }
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "e.g. Chapter 4 - Normalization & ER Diagrams"}),
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "Optional description or study guidance..."}),
+            "file": forms.FileInput(attrs={"accept": ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.csv,.zip,.rar,.7z,.tar,.gz,.png,.jpg,.jpeg"}),
+        }
+
+    def clean_title(self):
+        title = self.cleaned_data.get("title", "").strip()
+        if not title:
+            raise forms.ValidationError("Resource title is required.")
+        return title
+
+    def clean_file(self):
+        file = self.cleaned_data.get("file")
+        if not file:
+            raise forms.ValidationError("Please select a file to upload.")
+
+        if file.size > RESOURCE_MAX_SIZE_BYTES:
+            raise forms.ValidationError(
+                f"File exceeds maximum allowed size of 25 MB (uploaded: {file.size / (1024 * 1024):.1f} MB)."
+            )
+
+        _, ext = os.path.splitext(file.name.lower())
+        if ext in RESOURCE_DANGEROUS_EXTENSIONS or ext not in RESOURCE_ALLOWED_EXTENSIONS:
+            raise forms.ValidationError(
+                f"File extension '{ext}' is not permitted. Allowed formats include PDF, DOCX, PPTX, XLSX, TXT, images, and archives (ZIP/RAR)."
+            )
+        return file
+
+    def clean_is_published(self):
+        if "_has_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        if "is_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        return True
+
+
+class CourseResourceEditForm(forms.ModelForm):
+    is_published = forms.BooleanField(required=False, initial=True, label="Publish immediately")
+    file = forms.FileField(
+        required=False,
+        label="Replace File (Optional, Max 25 MB)",
+        help_text="Leave empty to keep the existing file.",
+        widget=forms.FileInput(attrs={"accept": ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.csv,.zip,.rar,.7z,.tar,.gz,.png,.jpg,.jpeg"}),
+    )
+
+    class Meta:
+        model = CourseResource
+        fields = ["title", "category", "description", "file", "is_published"]
+        labels = {
+            "title": "Resource Title",
+            "category": "Category",
+            "description": "Description / Notes",
+            "file": "Replace File",
+            "is_published": "Publish immediately",
+        }
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "e.g. Chapter 4 - Normalization & ER Diagrams"}),
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "Optional description or study guidance..."}),
+        }
+
+    def clean_title(self):
+        title = self.cleaned_data.get("title", "").strip()
+        if not title:
+            raise forms.ValidationError("Resource title is required.")
+        return title
+
+    def clean_file(self):
+        file = self.cleaned_data.get("file")
+        if not file:
+            return None
+
+        if file.size > RESOURCE_MAX_SIZE_BYTES:
+            raise forms.ValidationError(
+                f"File exceeds maximum allowed size of 25 MB (uploaded: {file.size / (1024 * 1024):.1f} MB)."
+            )
+
+        _, ext = os.path.splitext(file.name.lower())
+        if ext in RESOURCE_DANGEROUS_EXTENSIONS or ext not in RESOURCE_ALLOWED_EXTENSIONS:
+            raise forms.ValidationError(
+                f"File extension '{ext}' is not permitted. Allowed formats include PDF, DOCX, PPTX, XLSX, TXT, images, and archives (ZIP/RAR)."
+            )
+        return file
+
+    def clean_is_published(self):
+        if "_has_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        if "is_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        return self.instance.is_published if self.instance.pk else True
+
+
+class CourseLinkForm(forms.ModelForm):
+    is_published = forms.BooleanField(required=False, initial=True, label="Publish immediately")
+
+    class Meta:
+        model = CourseLink
+        fields = ["title", "category", "url", "description", "is_published"]
+        labels = {
+            "title": "Link Title",
+            "category": "Category",
+            "url": "Web URL",
+            "description": "Description / Notes",
+            "is_published": "Publish immediately",
+        }
+        widgets = {
+            "title": forms.TextInput(attrs={"placeholder": "e.g. Official WhatsApp Group or Reference Documentation"}),
+            "url": forms.URLInput(attrs={"placeholder": "https://chat.whatsapp.com/... or https://..."}),
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "Optional notes about this link..."}),
+        }
+
+    def clean_title(self):
+        title = self.cleaned_data.get("title", "").strip()
+        if not title:
+            raise forms.ValidationError("Link title is required.")
+        return title
+
+    def clean_url(self):
+        url = self.cleaned_data.get("url", "").strip()
+        if not url:
+            raise forms.ValidationError("URL is required.")
+
+        parsed = urlparse(url)
+        if parsed.scheme.lower() not in ("http", "https"):
+            raise forms.ValidationError("URL must start with http:// or https://.")
+        if not parsed.netloc:
+            raise forms.ValidationError("Please provide a valid web address.")
+        return url
+
+    def clean_is_published(self):
+        if "_has_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        if "is_published" in self.data:
+            return bool(self.cleaned_data.get("is_published"))
+        return self.instance.is_published if self.instance.pk else True
